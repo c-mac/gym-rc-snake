@@ -8,7 +8,7 @@ from gym.envs.classic_control import rendering
 # from gym.utils import seeding
 
 WINDOW_SIZE = 800
-BOARD_SIZE = 25
+BOARD_SIZE = 30
 SPACE_SIZE = WINDOW_SIZE / BOARD_SIZE
 START_PADDING = 2
 
@@ -17,11 +17,6 @@ class SnakeMove(Enum):
     DOWN = 1
     RIGHT = 2
     UP = 3
-
-
-class Window(pyglet.window.Window):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
 
 class SnakeRCEnv(gym.Env):
@@ -40,7 +35,7 @@ class SnakeRCEnv(gym.Env):
         """
         new_head = self.new_head(action)
 
-        if self.last_action and not self.valid_action(action):
+        if self.last_action != None and not self.valid_action(action):
             new_head = self.new_head(self.last_action)
         else:
             self.last_action = action
@@ -48,16 +43,20 @@ class SnakeRCEnv(gym.Env):
         score = 0
 
         if self.kills_snake(new_head, action):
-            return (self.action_space, -1, True, None)
+            return (self.observation(), -1, True, None)
 
         if new_head == self.food:
+            self.food = [
+                random.randint(START_PADDING, BOARD_SIZE - START_PADDING),
+                random.randint(START_PADDING, BOARD_SIZE - START_PADDING)
+            ]
             score = 1
         else:
             self.snake = self.snake[1:]
 
         self.snake.append(new_head)
 
-        return (self.action_space, score, False, None)
+        return (self.observation(), score, False, None)
 
     def valid_action(self, action):
         # Up and Down are 0 and 2, so their difference is 2
@@ -85,7 +84,6 @@ class SnakeRCEnv(gym.Env):
 
     def kills_snake(self, move, action):
         if move in self.snake:
-            import pdb; pdb.set_trace()
             return True
         elif move[0] > BOARD_SIZE or move[0] < 0 or move[1] > BOARD_SIZE or move[1] < 0:
             return True
@@ -95,6 +93,7 @@ class SnakeRCEnv(gym.Env):
     def reset(self):
         self.generate_board()
         print("RESET")
+        return self.observation()
 
     def generate_board(self):
         start_head = [
@@ -103,7 +102,7 @@ class SnakeRCEnv(gym.Env):
         ]
         self.snake = [
             start_head,
-            # [start_head[0] + 1, start_head[1]]
+            [start_head[0] + 1, start_head[1]]
         ]
         self.food = [
             random.randint(START_PADDING, BOARD_SIZE - START_PADDING),
@@ -129,6 +128,9 @@ class SnakeRCEnv(gym.Env):
                                           (x, y + SPACE_SIZE)])
         square.set_color(*color)
         return square
+
+    def observation(self):
+        return (self.last_action, self.snake, self.food)
 
     def close(self):
         print('close')
