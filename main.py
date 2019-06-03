@@ -1,6 +1,7 @@
 import time
 import gym
 from gym import wrappers, logger
+from agent.q_agent import QAgent
 
 from gym.envs.registration import register
 register(
@@ -32,7 +33,6 @@ class FoodSeekerAgent(object):
         self.action_space = action_space
 
     def act(self, observation, reward, done):
-        print(observation)
         last_action, snake, food = observation
         head = snake[-1]
         if head[0] < food[0]:
@@ -51,17 +51,37 @@ if __name__ == '__main__':
     env = gym.make('snake-rc-v0')
     outdir = '/tmp'
     env = wrappers.Monitor(env, directory=outdir, force=True)
-    agent = FoodSeekerAgent(env.action_space)
+    agent = QAgent(env.action_space, env.board_size)
     reward = 0
 
-    for i in range(100):
-        ob = env.reset()
-        for t in range(1000):
-            action = agent.act(ob, reward, done)
-            ob, reward, done, info = env.step(action)
-            env.render()
-            time.sleep(.05)
-            if done:
-                break
+    while True:
+        for t in range(50000):
+            done = False
+            ob = env.reset()
+            for i in range(100):
+                old_ob = ob
+                action = agent.random_act()
+                ob, reward, done, info = env.step(action)
+                agent.update_value(old_ob, action, reward, ob)
+                if done:
+                    env.close()
+                    break
+
+        print("KEYS ", len(agent.q_table.keys()))
+        print("HIT_RATE ", agent.hits / agent.lookups)
+        total_reward = 0
+        for t in range(5):
+            done = False
+            ob = env.reset()
+            for i in range(1000):
+                action = agent.act(ob, reward, done)
+                ob, reward, done, info = env.step(action)
+                total_reward += reward
+                time.sleep(0.03)
+                # env.render()
+                if done:
+                    env.close()
+                    break
+        print(f"Total reward: {total_reward}")
 
     env.close()

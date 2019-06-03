@@ -1,0 +1,7 @@
+README.md
+setup.py
+gym_rc_snake.egg-info/PKG-INFO
+gym_rc_snake.egg-info/SOURCES.txt
+gym_rc_snake.egg-info/dependency_links.txt
+gym_rc_snake.egg-info/requires.txt
+gym_rc_snake.egg-info/top_level.txt

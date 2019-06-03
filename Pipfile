@@ -7,6 +7,7 @@ verify_ssl = true
 
 [packages]
 gym-rc-snake = {editable = true,path = "."}
+tensorflow = ">=1.8.0"
 
 [requires]
 python_version = "3.7"

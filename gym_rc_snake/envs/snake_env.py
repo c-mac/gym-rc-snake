@@ -8,7 +8,7 @@ from gym.envs.classic_control import rendering
 # from gym.utils import seeding
 
 WINDOW_SIZE = 800
-BOARD_SIZE = 30
+BOARD_SIZE = 5
 SPACE_SIZE = WINDOW_SIZE / BOARD_SIZE
 START_PADDING = 2
 
@@ -28,6 +28,7 @@ class SnakeRCEnv(gym.Env):
         self.action_space = spaces.Discrete(4)
         self.viewer = rendering.Viewer(WINDOW_SIZE, WINDOW_SIZE)
         self.last_action = SnakeMove.RIGHT.value
+        self.board_size = BOARD_SIZE
 
     def step(self, action):
         """
@@ -40,23 +41,23 @@ class SnakeRCEnv(gym.Env):
         else:
             self.last_action = action
 
-        score = 0
+        reward = -0.1
 
         if self.kills_snake(new_head, action):
-            return (self.observation(), -1, True, None)
+            return (self.observation(), -10, True, None)
 
         if new_head == self.food:
             self.food = [
                 random.randint(START_PADDING, BOARD_SIZE - START_PADDING),
                 random.randint(START_PADDING, BOARD_SIZE - START_PADDING)
             ]
-            score = 1
+            reward = 10
         else:
             self.snake = self.snake[1:]
 
         self.snake.append(new_head)
 
-        return (self.observation(), score, False, None)
+        return (self.observation(), reward, False, None)
 
     def valid_action(self, action):
         # Up and Down are 0 and 2, so their difference is 2
@@ -85,28 +86,27 @@ class SnakeRCEnv(gym.Env):
     def kills_snake(self, move, action):
         if move in self.snake:
             return True
-        elif move[0] > BOARD_SIZE or move[0] < 0 or move[1] > BOARD_SIZE or move[1] < 0:
+        elif move[0] >= BOARD_SIZE or move[0] < 0 or move[1] >= BOARD_SIZE or move[1] < 0:
             return True
         return False
 
 
     def reset(self):
         self.generate_board()
-        print("RESET")
         return self.observation()
 
     def generate_board(self):
         start_head = [
-            random.randint(START_PADDING, BOARD_SIZE - START_PADDING),
-            random.randint(START_PADDING, BOARD_SIZE - START_PADDING)
+            random.randint(START_PADDING, BOARD_SIZE - 1 - START_PADDING),
+            random.randint(START_PADDING, BOARD_SIZE - 1 - START_PADDING)
         ]
         self.snake = [
             start_head,
             [start_head[0] + 1, start_head[1]]
         ]
         self.food = [
-            random.randint(START_PADDING, BOARD_SIZE - START_PADDING),
-            random.randint(START_PADDING, BOARD_SIZE - START_PADDING)
+            random.randint(0, BOARD_SIZE - 1),
+            random.randint(0, BOARD_SIZE - 1)
         ]
 
 
@@ -131,6 +131,3 @@ class SnakeRCEnv(gym.Env):
 
     def observation(self):
         return (self.last_action, self.snake, self.food)
-
-    def close(self):
-        print('close')
