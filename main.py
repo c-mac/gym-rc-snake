@@ -1,3 +1,4 @@
+import time
 import gym
 from gym import wrappers, logger
 
@@ -26,11 +27,15 @@ if __name__ == '__main__':
     env = wrappers.Monitor(env, directory=outdir, force=True)
     agent = RandomAgent(env.action_space)
     reward = 0
-    action = agent.act(None, reward, done)
 
     for i in range(100):
         ob = env.reset()
         for t in range(1000):
+            action = agent.act(None, reward, done)
+            obs, reward, done, info = env.step(action)
             env.render()
+            time.sleep(.1)
+            if done:
+                break
 
-    # env.close()
+    env.close()
