@@ -67,13 +67,13 @@ if __name__ == "__main__":
                     break
 
         total_reward = 0
-        for t in range(5):
+        for t in range(25):
             ob = env.reset()
             for i in range(100):
                 action = agent.act(ob, reward, done)
                 ob, reward, done, info = env.step(action)
                 total_reward += reward
-                time.sleep(0.03)
+                time.sleep(0.07)
                 env.render()
                 if done:
                     env.close()

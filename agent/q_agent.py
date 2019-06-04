@@ -7,7 +7,7 @@ class QAgent(object):
     """
 
     GAMMA = 0.9
-    ALPHA = 0.2
+    ALPHA = 0.4
 
     DEFAULT_ROW = {0: 0, 1: 0, 2: 0, 3: 0}
 
@@ -24,17 +24,16 @@ class QAgent(object):
         return f"[{snake[-1][0]},{snake[-1][1]}][{food[0]},{food[1]}]"
 
     def update_value(self, old_ob, action, reward, ob):
-        if self.observation_string(old_ob) == self.observation_string(ob):
-            import pdb
-
-            pdb.set_trace()
-        print(self.observation_string(old_ob), self.observation_string(ob))
         _, next_value = self.best_value_and_action(ob)
+        # print(f"REWARD: {reward}")
         new_value = reward + self.GAMMA * next_value
         key = self.observation_string(old_ob)
+        # print(f"OBSERVATION: {key}")
         values_row = self.q_table.get(key, {**self.DEFAULT_ROW})
+        # print(f"OLD VALUES: {values_row}")
         old_value = values_row[action]
         values_row[action] = (1 - self.ALPHA) * old_value + self.ALPHA * new_value
+        # print(f"NEW VALUES: {values_row}")
         self.q_table[key] = values_row
 
     def best_value_and_action(self, ob):
