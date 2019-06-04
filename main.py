@@ -2,6 +2,8 @@ import time
 import gym
 from gym import wrappers, logger
 from agent.q_agent import QAgent
+import matplotlib.pyplot as plt
+import numpy as np
 
 from gym.envs.registration import register
 
@@ -53,7 +55,10 @@ if __name__ == "__main__":
     env = wrappers.Monitor(env, directory=outdir, force=True)
     agent = QAgent(env.action_space, env.board_size)
     reward = 0
-    games_in_test = 10
+    sum_rewards = []
+    total_rewards = 0
+    rewards_iter = 0
+    test_episodes = 10
 
     while True:
         for t in range(5000):
@@ -67,18 +72,25 @@ if __name__ == "__main__":
                     env.close()
                     break
 
-        total_reward = 0
-        for t in range(games_in_test):
+        episode_reward = 0
+        for t in range(test_episodes):
             ob = env.reset()
             for i in range(100):
-                action = agent.act(ob, reward, done)
+                action = agent.act(ob)
                 ob, reward, done, info = env.step(action)
-                total_reward += reward
+                episode_reward += reward
                 env.render()
                 time.sleep(0.02)
                 if done:
                     env.close()
                     break
-        print(f"Total reward: {total_reward / float(games_in_test)}")
+        print(f"EPISODE REWARD: {episode_reward}")
+        rewards_iter += 1
+        sum_rewards.append(episode_reward / test_episodes)
+        if rewards_iter % 5 == 0:
+            plt.plot(np.arange(len(sum_rewards)), sum_rewards)
+            plt.xlabel("Episodes")
+            plt.ylabel("Average reward")
+            plt.show()
 
     env.close()

@@ -43,7 +43,7 @@ class SnakeRCEnv(gym.Env):
         else:
             self.last_action = action
 
-        reward = -0.1
+        reward = -0.5
 
         self.snake.append(new_head)
         if self.snake_dead():
