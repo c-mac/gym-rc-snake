@@ -20,14 +20,14 @@ class NN(nn.Module):
         self.x2 = nn.Linear(200, 4)
 
     def forward(self, x):
-        x = self.x1(x)
-        x = self.x2(x)
+        x = F.relu(self.x1(x))
+        x = F.relu(self.x2(x))
         return F.softmax(x)
 
 
 class DeepQAgent(object):
     """
-    Take in board obersvation and use a Deep Q Network algorithm to decide the next
+    Take in board observation and use a Deep Q Network algorithm to decide the next
     observation
     """
 
@@ -35,11 +35,18 @@ class DeepQAgent(object):
         self.action_space = action_space
         self.board_size = board_size
         self.qnetwork_local = NN(board_size)
+        # local used for current observation --> value of state, action
         self.qnetwork_target = NN(board_size)
+        # during learning, target used for next observation --> value of next_state, action in bellman equation
+        # then local and target are compared to get a loss, which is used to update local
+        # target is updated either with soft update each iteration or 
+        # is updated to equal the local one every C iterations
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=0.03)
         self.updates = []
 
     def act(self, ob, eps=0.0):
+    #Take random action (1-eps)% and play according to qnetwork_local 
+    #best action at this observation otherwise
         if random.random() < eps:
             self.qnetwork_local.eval()
             action_values = self.qnetwork_local(
@@ -51,6 +58,8 @@ class DeepQAgent(object):
         return self.action_space.sample()
 
     def update_value(self, ob, action, reward, next_ob):
+    #Keeps track of observations, actions, rewards, next_observations
+    #Upon reaching 1000, calls learn() and resets the history to empty
         self.updates.append([ob, action, float(reward), next_ob])
         if len(self.updates) == 1000:
             self.learn()
@@ -58,6 +67,10 @@ class DeepQAgent(object):
 
     def learn(self):
         # update NN using all of our updates so far
+
+
+        #get the value of the next state given the states from the update batch 
+        #using the target network
         q_targets_next = (
             self.qnetwork_target(
                 torch.tensor(
@@ -75,11 +88,15 @@ class DeepQAgent(object):
             .unsqueeze(1)  # adds extra dimension
         )
 
+        #rewards from the update batch
         rewards = torch.tensor([u[2] for u in self.updates])
 
         q_targets = rewards + (GAMMA * q_targets_next.t())
 
+        #find the actions we took in the updates batch
         actions = torch.tensor([u[1] for u in self.updates])
+
+        #get our q_values given the actions we took in the update batch
         q_expected = self.qnetwork_local(
             torch.tensor(
                 list(
@@ -90,7 +107,7 @@ class DeepQAgent(object):
                 )
             )
         )
-        # gather taking the state values for the actions that we took
+        # gather taking the q values for the specific actions that we took
         q_expected = q_expected.gather(1, actions.unsqueeze(1))
 
         loss = F.mse_loss(q_expected, q_targets)
@@ -100,7 +117,8 @@ class DeepQAgent(object):
         loss.backward()
         self.optimizer.step()
 
-        # could do "soft" update here for target network
+        # update target network parameters to be closer to local network
+        # alternate is to set these equal every C steps
         self.soft_update()
 
     def soft_update(self):
