@@ -19,7 +19,7 @@ class QAgent(object):
 
     def random_act(self, ob):
         best_action, best_value = self.best_value_and_action(ob)
-        if best_value > 0 and random.random() > 0.25:
+        if random.random() > 0.5:
             return best_action
         return self.action_space.sample()
 

@@ -9,7 +9,7 @@ from gym.envs.classic_control import rendering
 # from gym.utils import seeding
 
 WINDOW_SIZE = 800
-BOARD_SIZE = 8
+BOARD_SIZE = 12
 SPACE_SIZE = WINDOW_SIZE / BOARD_SIZE
 START_PADDING = 2
 
@@ -87,7 +87,7 @@ class SnakeRCEnv(gym.Env):
         head = self.snake[-1]
         tail = self.snake[:-1]
         if head in tail:
-            return -50
+            return -10
         elif (
             head[0] >= BOARD_SIZE or head[0] < 0 or head[1] >= BOARD_SIZE or head[1] < 0
         ):

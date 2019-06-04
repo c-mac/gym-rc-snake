@@ -53,9 +53,10 @@ if __name__ == "__main__":
     env = wrappers.Monitor(env, directory=outdir, force=True)
     agent = QAgent(env.action_space, env.board_size)
     reward = 0
+    games_in_test = 10
 
     while True:
-        for t in range(1000):
+        for t in range(5000):
             ob = env.reset()
             for i in range(100):
                 old_ob = ob
@@ -67,17 +68,17 @@ if __name__ == "__main__":
                     break
 
         total_reward = 0
-        for t in range(25):
+        for t in range(games_in_test):
             ob = env.reset()
             for i in range(100):
                 action = agent.act(ob, reward, done)
                 ob, reward, done, info = env.step(action)
                 total_reward += reward
-                time.sleep(0.01)
                 env.render()
+                time.sleep(0.02)
                 if done:
                     env.close()
                     break
-        print(f"Total reward: {total_reward}")
+        print(f"Total reward: {total_reward / float(games_in_test)}")
 
     env.close()
