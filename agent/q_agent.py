@@ -8,7 +8,7 @@ class QAgent(object):
     """
 
     GAMMA = 0.9
-    ALPHA = 0.4
+    ALPHA = 0.2
 
     DEFAULT_ROW = {0: 0, 1: 0, 2: 0, 3: 0}
 

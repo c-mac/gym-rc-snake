@@ -10,6 +10,7 @@ gym-rc-snake = {editable = true,path = "."}
 tensorflow = ">=1.8.0"
 black = "*"
 matplotlib = "*"
+torch = "*"
 
 [requires]
 python_version = "3.7"

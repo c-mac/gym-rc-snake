@@ -9,7 +9,7 @@ from gym.envs.classic_control import rendering
 # from gym.utils import seeding
 
 WINDOW_SIZE = 800
-BOARD_SIZE = 12
+BOARD_SIZE = 5
 SPACE_SIZE = WINDOW_SIZE / BOARD_SIZE
 START_PADDING = 2
 
@@ -43,7 +43,7 @@ class SnakeRCEnv(gym.Env):
         else:
             self.last_action = action
 
-        reward = -0.5
+        reward = -0.1
 
         self.snake.append(new_head)
         if self.snake_dead():
@@ -52,11 +52,12 @@ class SnakeRCEnv(gym.Env):
             ob = self.observation()
 
             if new_head == self.food:
-                self.food = [
-                    random.randint(START_PADDING, BOARD_SIZE - START_PADDING),
-                    random.randint(START_PADDING, BOARD_SIZE - START_PADDING),
-                ]
-                reward = 100
+                while self.food in self.snake:
+                    self.food = [
+                        random.randint(START_PADDING, BOARD_SIZE - START_PADDING),
+                        random.randint(START_PADDING, BOARD_SIZE - START_PADDING),
+                    ]
+                reward = 50
             else:
                 self.snake = self.snake[1:]
 
@@ -87,11 +88,11 @@ class SnakeRCEnv(gym.Env):
         head = self.snake[-1]
         tail = self.snake[:-1]
         if head in tail:
-            return -10
+            return -7
         elif (
             head[0] >= BOARD_SIZE or head[0] < 0 or head[1] >= BOARD_SIZE or head[1] < 0
         ):
-            return -100
+            return -10
         return False
 
     def reset(self):
