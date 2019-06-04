@@ -5,12 +5,14 @@ import gym
 import pyglet
 from gym import spaces
 from gym.envs.classic_control import rendering
+
 # from gym.utils import seeding
 
 WINDOW_SIZE = 800
 BOARD_SIZE = 5
 SPACE_SIZE = WINDOW_SIZE / BOARD_SIZE
 START_PADDING = 2
+
 
 class SnakeMove(Enum):
     LEFT = 0
@@ -49,7 +51,7 @@ class SnakeRCEnv(gym.Env):
         if new_head == self.food:
             self.food = [
                 random.randint(START_PADDING, BOARD_SIZE - START_PADDING),
-                random.randint(START_PADDING, BOARD_SIZE - START_PADDING)
+                random.randint(START_PADDING, BOARD_SIZE - START_PADDING),
             ]
             reward = 10
         else:
@@ -62,10 +64,7 @@ class SnakeRCEnv(gym.Env):
     def valid_action(self, action):
         # Up and Down are 0 and 2, so their difference is 2
         # The same applies to left and right (1 and 3)
-        return not (
-            self.last_action == action or
-            abs(self.last_action - action) == 2
-        )
+        return not (self.last_action == action or abs(self.last_action - action) == 2)
 
     def new_head(self, action):
 
@@ -86,10 +85,11 @@ class SnakeRCEnv(gym.Env):
     def kills_snake(self, move, action):
         if move in self.snake:
             return True
-        elif move[0] >= BOARD_SIZE or move[0] < 0 or move[1] >= BOARD_SIZE or move[1] < 0:
+        elif (
+            move[0] >= BOARD_SIZE or move[0] < 0 or move[1] >= BOARD_SIZE or move[1] < 0
+        ):
             return True
         return False
-
 
     def reset(self):
         self.generate_board()
@@ -98,34 +98,34 @@ class SnakeRCEnv(gym.Env):
     def generate_board(self):
         start_head = [
             random.randint(START_PADDING, BOARD_SIZE - 1 - START_PADDING),
-            random.randint(START_PADDING, BOARD_SIZE - 1 - START_PADDING)
+            random.randint(START_PADDING, BOARD_SIZE - 1 - START_PADDING),
         ]
-        self.snake = [
-            start_head,
-            [start_head[0] + 1, start_head[1]]
-        ]
+        self.snake = [start_head, [start_head[0] + 1, start_head[1]]]
         self.food = [
             random.randint(0, BOARD_SIZE - 1),
-            random.randint(0, BOARD_SIZE - 1)
+            random.randint(0, BOARD_SIZE - 1),
         ]
 
-
-    def render(self, mode='human', close=False):
+    def render(self, mode="human", close=False):
         for segment in self.snake:
             square = self.render_square(segment[0], segment[1], (0, 0, 1))
             self.viewer.add_onetime(square)
 
         food = self.render_square(self.food[0], self.food[1], (1, 0, 0))
         self.viewer.add_onetime(food)
-        return self.viewer.render(return_rgb_array=mode=='rgb_array')
+        return self.viewer.render(return_rgb_array=mode == "rgb_array")
 
     def render_square(self, x, y, color):
         x *= SPACE_SIZE
         y *= SPACE_SIZE
-        square = rendering.FilledPolygon([(x, y),
-                                          (x + SPACE_SIZE, y),
-                                          (x + SPACE_SIZE, y + SPACE_SIZE),
-                                          (x, y + SPACE_SIZE)])
+        square = rendering.FilledPolygon(
+            [
+                (x, y),
+                (x + SPACE_SIZE, y),
+                (x + SPACE_SIZE, y + SPACE_SIZE),
+                (x, y + SPACE_SIZE),
+            ]
+        )
         square.set_color(*color)
         return square
 

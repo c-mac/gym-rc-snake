@@ -1,23 +1,17 @@
 import numpy as np
 
+
 class QAgent(object):
     """
     Take in board state and use a Q Learning algorithm to decide the next state
     """
 
     GAMMA = 0.9
-    ALPHA = 0.1
+    ALPHA = 0.2
 
-    DEFAULT_ROW = {
-        0: 0,
-        1: 0,
-        2: 0,
-        3: 0,
-    }
+    DEFAULT_ROW = {0: 0, 1: 0, 2: 0, 3: 0}
 
     def __init__(self, action_space, board_size):
-        self.lookups = 0
-        self.hits = 0
         self.action_space = action_space
         self.q_table = {}
         self.board_size = board_size
@@ -30,6 +24,11 @@ class QAgent(object):
         return f"[{snake[-1][0]},{snake[-1][1]}][{food[0]},{food[1]}]"
 
     def update_value(self, old_ob, action, reward, ob):
+        if self.observation_string(old_ob) == self.observation_string(ob):
+            import pdb
+
+            pdb.set_trace()
+        print(self.observation_string(old_ob), self.observation_string(ob))
         _, next_value = self.best_value_and_action(ob)
         new_value = reward + self.GAMMA * next_value
         key = self.observation_string(old_ob)
@@ -37,24 +36,19 @@ class QAgent(object):
         old_value = values_row[action]
         values_row[action] = (1 - self.ALPHA) * old_value + self.ALPHA * new_value
         self.q_table[key] = values_row
-        self.observation_string(old_ob)
 
     def best_value_and_action(self, ob):
-        self.lookups += 1.0
         best_action = None
         best_value = 0
-        value_row =self.q_table.get(self.observation_string(ob), False)
+        value_row = self.q_table.get(self.observation_string(ob), False)
         if not value_row:
             value_row = self.DEFAULT_ROW
-        else:
-            self.hits += 1.0
         for action, value in value_row.items():
             if best_action == None or value > best_value:
                 best_value = value
                 best_action = action
 
         return best_action, best_value
-
 
     def act(self, observation, reward, done):
         key = self.observation_string(observation)

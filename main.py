@@ -4,11 +4,10 @@ from gym import wrappers, logger
 from agent.q_agent import QAgent
 
 from gym.envs.registration import register
-register(
-    id='snake-rc-v0',
-    entry_point='gym_rc_snake.envs:SnakeRCEnv',
-)
+
+register(id="snake-rc-v0", entry_point="gym_rc_snake.envs:SnakeRCEnv")
 from enum import Enum
+
 
 class SnakeMove(Enum):
     LEFT = 0
@@ -25,6 +24,7 @@ class RandomAgent(object):
 
     def act(self, observation, reward, done):
         return self.action_space.sample()
+
 
 class FoodSeekerAgent(object):
     """The world's simplest agent!"""
@@ -45,18 +45,17 @@ class FoodSeekerAgent(object):
             return SnakeMove.UP.value
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logger.set_level(logger.DEBUG)
     done = False
-    env = gym.make('snake-rc-v0')
-    outdir = '/tmp'
+    env = gym.make("snake-rc-v0")
+    outdir = "/tmp"
     env = wrappers.Monitor(env, directory=outdir, force=True)
     agent = QAgent(env.action_space, env.board_size)
     reward = 0
 
     while True:
         for t in range(50000):
-            done = False
             ob = env.reset()
             for i in range(100):
                 old_ob = ob
@@ -67,18 +66,15 @@ if __name__ == '__main__':
                     env.close()
                     break
 
-        print("KEYS ", len(agent.q_table.keys()))
-        print("HIT_RATE ", agent.hits / agent.lookups)
         total_reward = 0
         for t in range(5):
-            done = False
             ob = env.reset()
-            for i in range(1000):
+            for i in range(100):
                 action = agent.act(ob, reward, done)
                 ob, reward, done, info = env.step(action)
                 total_reward += reward
                 time.sleep(0.03)
-                # env.render()
+                env.render()
                 if done:
                     env.close()
                     break
