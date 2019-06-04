@@ -55,11 +55,11 @@ if __name__ == "__main__":
     reward = 0
 
     while True:
-        for t in range(50000):
+        for t in range(1000):
             ob = env.reset()
             for i in range(100):
                 old_ob = ob
-                action = agent.random_act()
+                action = agent.random_act(ob)
                 ob, reward, done, info = env.step(action)
                 agent.update_value(old_ob, action, reward, ob)
                 if done:
@@ -73,7 +73,7 @@ if __name__ == "__main__":
                 action = agent.act(ob, reward, done)
                 ob, reward, done, info = env.step(action)
                 total_reward += reward
-                time.sleep(0.07)
+                time.sleep(0.01)
                 env.render()
                 if done:
                     env.close()

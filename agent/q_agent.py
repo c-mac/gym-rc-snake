@@ -1,3 +1,4 @@
+import random
 import numpy as np
 
 
@@ -16,7 +17,10 @@ class QAgent(object):
         self.q_table = {}
         self.board_size = board_size
 
-    def random_act(self):
+    def random_act(self, ob):
+        best_action, best_value = self.best_value_and_action(ob)
+        if best_value > 0 and random.random() > 0.25:
+            return best_action
         return self.action_space.sample()
 
     def observation_string(self, ob):
