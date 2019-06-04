@@ -56,8 +56,8 @@ class QAgent(object):
         return best_action, best_value
 
 
-    def act(self, observation, reward, done):
+    def act(self, observation):
         key = self.observation_string(observation)
-        action, value = self.best_value_and_action(observation)
+        action, _ = self.best_value_and_action(observation)
 
         return action
