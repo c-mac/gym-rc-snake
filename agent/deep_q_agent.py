@@ -6,6 +6,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 GAMMA = 0.9
+TAU = 0.2
+
 
 class NN(nn.Module):
     INPUT_CHANNELS = 3
@@ -37,10 +39,12 @@ class DeepQAgent(object):
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=0.03)
         self.updates = []
 
-    def act(self, ob, eps = 0.):
+    def act(self, ob, eps=0.0):
         if random.random() < eps:
             self.qnetwork_local.eval()
-            action_values = self.qnetwork_local(torch.tensor(self.observation_to_tensor(ob)))
+            action_values = self.qnetwork_local(
+                torch.tensor(self.observation_to_tensor(ob))
+            )
             self.qnetwork_local.train()
             return np.argmax(action_values.data.numpy())
 
@@ -48,7 +52,7 @@ class DeepQAgent(object):
 
     def update_value(self, ob, action, reward, next_ob):
         self.updates.append([ob, action, float(reward), next_ob])
-        if len(self.updates) == 10:
+        if len(self.updates) == 1000:
             self.learn()
             self.updates = []
 
@@ -65,41 +69,52 @@ class DeepQAgent(object):
                     )
                 )
             )
-            .max(1)[0] #gets the maximum value for next_ob according to qnetwork_target
-            .unsqueeze(1) #adds extra dimension
+            .max(1)[
+                0
+            ]  # gets the maximum value for next_ob according to qnetwork_target
+            .unsqueeze(1)  # adds extra dimension
         )
 
         rewards = torch.tensor([u[2] for u in self.updates])
 
-        try:
-            q_targets = rewards + (GAMMA * q_targets_next.t())
-        except Exception:
-            import pdb; pdb.set_trace()
+        q_targets = rewards + (GAMMA * q_targets_next.t())
 
         actions = torch.tensor([u[1] for u in self.updates])
-        q_expected = self.qnetwork_local(torch.tensor(
-            list(
-                map(
-                    lambda update: self.observation_to_tensor(update[0]),
-                    self.updates,
+        q_expected = self.qnetwork_local(
+            torch.tensor(
+                list(
+                    map(
+                        lambda update: self.observation_to_tensor(update[0]),
+                        self.updates,
+                    )
                 )
             )
-        ))
-        #gather taking the state values for the actions that we took
-        q_expected = q_expected.gather(1,actions.unsqueeze(1)) 
+        )
+        # gather taking the state values for the actions that we took
+        q_expected = q_expected.gather(1, actions.unsqueeze(1))
 
         loss = F.mse_loss(q_expected, q_targets)
 
-        #minimize loss on q_expected local network
+        # minimize loss on q_expected local network
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-        #could do "soft" update here for target network
+        # could do "soft" update here for target network
+        self.soft_update()
 
+    def soft_update(self):
+        for target_param, local_param in zip(
+            self.qnetwork_target.parameters(), self.qnetwork_local.parameters()
+        ):
+            target_param.data.copy_(
+                TAU * local_param.data + (1.0 - TAU) * target_param.data
+            )
 
     def best_value_and_action(self, ob):
-        import pdb; pdb.set_trace()
+        import pdb
+
+        pdb.set_trace()
         return 0, 0
 
     def observation_to_tensor(self, ob):
