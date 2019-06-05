@@ -63,11 +63,11 @@ if __name__ == "__main__":
     test_episodes = 10
 
     while True:
-        for t in range(10000):
+        for t in range(5000):
             ob = env.reset()
             for i in range(100):
                 old_ob = ob
-                action = agent.act(ob, 1.0)
+                action = agent.act(ob, 0.9)
                 ob, reward, done, info = env.step(action)
                 agent.update_value(old_ob, action, reward, ob)
                 if done:
@@ -78,11 +78,11 @@ if __name__ == "__main__":
         for t in range(test_episodes):
             ob = env.reset()
             for i in range(100):
-                action = agent.act(ob)
+                action = agent.act(ob, 0.1)
                 ob, reward, done, info = env.step(action)
                 episode_reward += reward
                 env.render()
-                time.sleep(0.07)
+                time.sleep(0.1)
                 if done:
                     env.close()
                     break
