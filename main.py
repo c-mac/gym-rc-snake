@@ -82,7 +82,7 @@ if __name__ == "__main__":
                 ob, reward, done, info = env.step(action)
                 episode_reward += reward
                 env.render()
-                time.sleep(0.01)
+                time.sleep(0.07)
                 if done:
                     env.close()
                     break
