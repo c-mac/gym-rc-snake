@@ -17,9 +17,9 @@ class QAgent(object):
         self.q_table = {}
         self.board_size = board_size
 
-    def random_act(self, ob):
+    def act(self, ob, eps=0.0):
         best_action, best_value = self.best_value_and_action(ob)
-        if random.random() > 0.5:
+        if random.random() < eps:
             return best_action
         return self.action_space.sample()
 
@@ -27,7 +27,7 @@ class QAgent(object):
         _, snake, food = ob
         return f"[{snake[-1][0]},{snake[-1][1]}][{food[0]},{food[1]}]"
 
-    def update_value(self, old_ob, action, reward, ob):
+    def update_value(self, old_ob, action, reward, ob, _done):
         _, next_value = self.best_value_and_action(ob)
         new_value = reward + self.GAMMA * next_value
         key = self.observation_string(old_ob)
@@ -48,8 +48,3 @@ class QAgent(object):
                 best_action = action
 
         return best_action, best_value
-
-    def act(self, observation):
-        action, _ = self.best_value_and_action(observation)
-
-        return action

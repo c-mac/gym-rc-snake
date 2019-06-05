@@ -55,7 +55,7 @@ if __name__ == "__main__":
     outdir = "/tmp"
     env = wrappers.Monitor(env, directory=outdir, force=True)
     # agent = QAgent(env.action_space, env.board_size)
-    agent = DeepQAgent(env.action_space, env.board_size)
+    agent = DeepQAgent(env.action_space, env.board_size, 12345)
     reward = 0
     sum_rewards = []
     total_rewards = 0
@@ -63,13 +63,13 @@ if __name__ == "__main__":
     test_episodes = 10
 
     while True:
-        for t in range(5000):
+        for t in range(100):
             ob = env.reset()
             for i in range(100):
                 old_ob = ob
-                action = agent.act(ob, 0.9)
+                action = agent.act(ob, 0.5)
                 ob, reward, done, info = env.step(action)
-                agent.update_value(old_ob, action, reward, ob)
+                agent.update_value(old_ob, action, reward, ob, done)
                 if done:
                     env.close()
                     break
@@ -77,12 +77,12 @@ if __name__ == "__main__":
         episode_reward = 0
         for t in range(test_episodes):
             ob = env.reset()
-            for i in range(100):
-                action = agent.act(ob, 0.1)
+            for i in range(200):
+                action = agent.act(ob)
                 ob, reward, done, info = env.step(action)
                 episode_reward += reward
                 env.render()
-                time.sleep(0.1)
+                time.sleep(0.03)
                 if done:
                     env.close()
                     break
