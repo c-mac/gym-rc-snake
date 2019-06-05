@@ -3,6 +3,7 @@ import gym
 from gym import wrappers, logger
 from agent.q_agent import QAgent
 from agent.deep_q_agent import DeepQAgent
+from agent.policy_gradient_agent import PolicyGradientAgent
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -55,7 +56,7 @@ if __name__ == "__main__":
     outdir = "/tmp"
     env = wrappers.Monitor(env, directory=outdir, force=True)
     # agent = QAgent(env.action_space, env.board_size)
-    agent = DeepQAgent(env.action_space, env.board_size, 12345)
+    agent = PolicyGradientAgent(env.action_space, env.board_size, 12345)
     reward = 0
     sum_rewards = []
     total_rewards = 0
@@ -63,11 +64,11 @@ if __name__ == "__main__":
     test_episodes = 10
 
     while True:
-        for t in range(100):
+        for t in range(1000):
             ob = env.reset()
             for i in range(100):
                 old_ob = ob
-                action = agent.act(ob, 0.5)
+                action = agent.act(ob)
                 ob, reward, done, info = env.step(action)
                 agent.update_value(old_ob, action, reward, ob, done)
                 if done:

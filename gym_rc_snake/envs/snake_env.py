@@ -43,7 +43,7 @@ class SnakeRCEnv(gym.Env):
         else:
             self.last_action = action
 
-        reward = -10
+        reward = -0.1
         done = False
 
         self.snake.append(new_head)
@@ -53,7 +53,7 @@ class SnakeRCEnv(gym.Env):
             ob = self.observation()
 
             if new_head == self.food:
-                reward = 500
+                reward = 1.0
                 if len(self.snake) > BOARD_SIZE:
                     done = True
                 while not done and self.food in self.snake:
@@ -91,11 +91,11 @@ class SnakeRCEnv(gym.Env):
         head = self.snake[-1]
         tail = self.snake[:-1]
         if head in tail:
-            return -10
+            return -1.0
         elif (
             head[0] >= BOARD_SIZE or head[0] < 0 or head[1] >= BOARD_SIZE or head[1] < 0
         ):
-            return -100
+            return -1.0
         return False
 
     def reset(self):
