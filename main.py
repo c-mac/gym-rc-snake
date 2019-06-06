@@ -61,7 +61,7 @@ if __name__ == "__main__":
     sum_rewards = []
     total_rewards = 0
     rewards_iter = 0
-    test_episodes = 10
+    test_episodes = 30
 
     while True:
         for t in range(1000):
@@ -78,12 +78,12 @@ if __name__ == "__main__":
         episode_reward = 0
         for t in range(test_episodes):
             ob = env.reset()
-            for i in range(200):
+            for i in range(100):
                 action = agent.act(ob)
                 ob, reward, done, info = env.step(action)
                 episode_reward += reward
                 env.render()
-                time.sleep(0.03)
+                time.sleep(0.04)
                 if done:
                     env.close()
                     break

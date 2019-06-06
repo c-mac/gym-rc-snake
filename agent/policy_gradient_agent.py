@@ -7,8 +7,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 BATCH_SIZE = 1000
-GAMMA = 0.99
-LEARNING_RATE = 1e-2
+GAMMA = 0.89
+LEARNING_RATE = 1e-3
 
 
 class NN(nn.Module):
@@ -16,17 +16,15 @@ class NN(nn.Module):
 
     def __init__(self, board_size):
         super(NN, self).__init__()
-        self.conv1 = nn.Conv2d(self.INPUT_CHANNELS, 8, 3, padding=1)
-        self.conv2 = nn.Conv2d(8, 16, 3, padding=1)
-        self.conv3 = nn.Conv2d(16, 1, 3, padding=1)
-        self.x1 = nn.Linear(36, 200)
-        self.x2 = nn.Linear(200, 4)
-        self.softmax = nn.LogSoftmax()
+        self.conv = nn.Conv2d(self.INPUT_CHANNELS, 1, 3, padding=1)
+        self.first_layer_size = 36
+        self.x1 = nn.Linear(self.first_layer_size, 16)
+        self.x2 = nn.Linear(16, 4)
+        self.softmax = nn.Softmax()
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
+        x = F.relu(self.conv(x))
+        x = x.view(-1, self.first_layer_size)
         x = F.relu(self.x1(x))
         x = self.x2(x)
         return self.softmax(x.squeeze())
@@ -45,6 +43,7 @@ class PolicyGradientAgent(object):
         self.board_size = board_size
         self.nn = self.load_network(f"savepoints/policy_gradient_{board_size}.pk")
         self.history = []
+        self.positive_replay_history = []
         self.optimizer = optim.Adam(self.nn.parameters(), lr=LEARNING_RATE)
         self.time_step = 0
 
@@ -75,27 +74,44 @@ class PolicyGradientAgent(object):
             rewards_after = reward_here
 
         rewards_to_go = list(reversed(rewards_to_go))
-        # import pdb
 
-        # pdb.set_trace()
+        self.positive_replay_history = []
+        for i in range(len(rewards_to_go)):
+            if rewards_to_go[i] > 0:
+                self.positive_replay_history.append(i)
+
         rewards_to_go -= np.mean(rewards_to_go)
         rewards_to_go /= np.std(rewards_to_go) or 0.00001
         rewards_to_go = torch.tensor(rewards_to_go)
 
         self.optimizer.zero_grad()
+        total_loss = 0.0
 
         for i in range(len(self.history)):
-            probabilities = self.nn(torch.tensor([self.ob_to_tensor(obs[i])]))
-            distribution = torch.distributions.Categorical(probabilities)
-            surprise = -distribution.log_prob(torch.tensor(actions[i]))
-            loss = -probabilities[actions[i]] * rewards_to_go[i]
-            if self.time_step % 1000 == 0:
-                torch.save(self.nn, f"savepoints/policy_gradient_{self.board_size}.pk")
-            if self.time_step % 10000 == 0:
-                print(f"loss: {loss}")
+            probs = self.nn(torch.tensor([self.ob_to_tensor(obs[i])]))
+            m = torch.distributions.Categorical(probs)
+            action = actions[i]
+            reward = rewards_to_go[i]
+            loss = -m.log_prob(action) * reward
+
             loss.backward()
+            total_loss += loss
+
+        for i in self.positive_replay_history:
+            probs = self.nn(torch.tensor([self.ob_to_tensor(obs[i])]))
+            m = torch.distributions.Categorical(probs)
+            action = actions[i]
+            reward = rewards_to_go[i]
+            loss = -m.log_prob(action) * reward
+
+            loss.backward()
+            total_loss += loss
+
+        print(f"loss: {loss}")
 
         self.optimizer.step()
+
+        torch.save(self.nn, f"savepoints/policy_gradient_{self.board_size}.pk")
 
         self.history = []
 
@@ -108,14 +124,12 @@ class PolicyGradientAgent(object):
         # Take an action according to policy
 
         probs = self.nn(torch.tensor([self.ob_to_tensor(ob)]))
+        if self.time_step % 1000 == 0:
+            print(f"PROBS: {probs}")
         self.time_step += 1
 
-        try:
-            return torch.multinomial(torch.exp(probs), num_samples=1)
-        except Exception:
-            import pdb
-
-            pdb.set_trace()
+        action = torch.multinomial(probs, num_samples=1)
+        return action
 
     def ob_to_tensor(self, ob):
         return [
