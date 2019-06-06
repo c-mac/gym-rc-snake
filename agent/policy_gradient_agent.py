@@ -1,170 +1,202 @@
-from collections import namedtuple, deque
-import random
+from gym_rc_snake.envs.snake_env import SnakeRCEnv
+from collections import namedtuple
+
+import matplotlib.pyplot as plt
 import numpy as np
+import random
 import torch
-import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
+from torch.distributions import Categorical
 
-BATCH_SIZE = 1000
-GAMMA = 0.89
-LEARNING_RATE = 1e-3
+from agent.network import Network
 
+Experience = namedtuple(
+    "Experience",
+    field_names=["observation", "action", "reward", "next_observation", "done"],
+)
 
-class NN(nn.Module):
-    INPUT_CHANNELS = 3
+GAMMA = 0.8
 
-    def __init__(self, board_size):
-        super(NN, self).__init__()
-        self.conv = nn.Conv2d(self.INPUT_CHANNELS, 1, 3, padding=1)
-        self.first_layer_size = 36
-        self.x1 = nn.Linear(self.first_layer_size, 16)
-        self.x2 = nn.Linear(16, 4)
-        self.softmax = nn.Softmax()
-
-    def forward(self, x):
-        x = F.relu(self.conv(x))
-        x = x.view(-1, self.first_layer_size)
-        x = F.relu(self.x1(x))
-        x = self.x2(x)
-        return self.softmax(x.squeeze())
+LEFT = 0
+DOWN = 1
+RIGHT = 2
+UP = 3
+MOVE_OPPOSITE = {LEFT: RIGHT, DOWN: UP, RIGHT: LEFT, UP: DOWN}
 
 
-class PolicyGradientAgent(object):
+class PolicyGradientAgent:
     """
-    Take in board observation and use a Vanilla Policy Gradient algorithm to decide the
-    next observation
+    Use Vanilla Policy Gradient
     """
 
-    def __init__(self, action_space, board_size, seed):
+    def __init__(self, action_space, board_size, seed=12345, network_name=None):
         random.seed(seed)
+        if network_name:
+            self.network_name = (
+                f"savepoints/{network_name}-policy_gradient_"
+                f"{board_size}x{board_size}.pk"
+            )
+        else:
+            self.network_name = None
         self.action_space = action_space
-        self.batch_size = BATCH_SIZE
+        self.batch_size = 1024
         self.board_size = board_size
-        self.nn = self.load_network(f"savepoints/policy_gradient_{board_size}.pk")
+        self.network = self.load_network(self.network_name)
+
         self.history = []
-        self.positive_replay_history = []
-        self.optimizer = optim.Adam(self.nn.parameters(), lr=LEARNING_RATE)
-        self.time_step = 0
+        self.graph_env = SnakeRCEnv()
+        self.optimizer = optim.SGD(self.network.parameters(), lr=1e-2)
+        self.t = 0
 
     def load_network(self, filename):
+        if not filename:
+            return Network(self.board_size)
+
         try:
-            return torch.load(filename)
+            network = torch.load(filename)
+            print(f"Successfully loaded network from file: {filename}")
+            return network
         except Exception:
-            return NN(self.board_size)
+            print(f"Could not load network from {filename}, creating a new one")
+            return Network(self.board_size)
 
-    def update_value(self, ob, action, reward, new_ob, done):
-        self.history.append([ob, action, float(reward), new_ob, done])
-        if done and len(self.history) > BATCH_SIZE:
-            self.learn()
+    def act(self, observation):
+        """
+        Take in an observation
+        Run it through the network to get an action distribution
+        Sample from that action distribution and return the result
+        """
+        self.t += 1
 
-    def learn(self):
-        obs = [h[0] for h in self.history]
-        actions = [h[1] for h in self.history]
-        dones = [h[4] for h in self.history]
-        rewards = [h[2] for h in self.history]
-        rewards_to_go = torch.zeros(len(self.history))
+        probabilities = self.probabilities(observation)
+
+        probabilities *= self.action_mask(observation[0])
+
+        return torch.multinomial(probabilities, num_samples=1)[0]
+
+    def action_mask(self, last_move):
+        action_mask = torch.ones(self.action_space.n)
+        action_mask[MOVE_OPPOSITE[last_move]] = 0.0
+        return action_mask
+
+    def update_value(self, *args, **kwargs):
+        return self.remember(*args, **kwargs)
+
+    def remember(self, observation, action, reward, next_observation, done):
+        self.history.append(
+            Experience(observation, action, reward, next_observation, done)
+        )
+
+        if len(self.history) > self.batch_size and done:
+            self.learn_from_history(self.history)
+            self.history = []
+
+    def learn_from_history(self, history, log=False):
+        rewards_to_go = torch.zeros(len(history))
+        rewards = [h.reward for h in history]
         rewards_after = 0
         for i in reversed(range(len(rewards))):
-            if dones[i]:
+            if history[i].done:
                 rewards_after = 0
 
             reward_here = rewards_after * GAMMA + rewards[i]
             rewards_to_go[i] = reward_here
             rewards_after = reward_here
 
-        rewards_to_go = list(reversed(rewards_to_go))
+        if log:
+            print(rewards_to_go)
 
-        self.positive_replay_history = []
-        for i in range(len(rewards_to_go)):
-            if rewards_to_go[i] > 0:
-                self.positive_replay_history.append(i)
+        rewards_to_go -= rewards_to_go.mean()
+        std = rewards_to_go.std()
 
-        rewards_to_go -= np.mean(rewards_to_go)
-        rewards_to_go /= np.std(rewards_to_go) or 0.00001
-        rewards_to_go = torch.tensor(rewards_to_go)
+        if std < 0.001:
+            print("Not training on a set of rewards that are all the same")
+            return
+
+        rewards_to_go /= std
+        if log:
+            print(rewards_to_go)
+
+        to_train_from = [
+            (history[i].observation, history[i].action, rewards_to_go[i])
+            for i in range(len(history))
+        ]
 
         self.optimizer.zero_grad()
-        total_loss = 0.0
 
-        for i in range(len(self.history)):
-            probs = self.nn(torch.tensor([self.ob_to_tensor(obs[i])]))
-            m = torch.distributions.Categorical(probs)
-            action = actions[i]
-            reward = rewards_to_go[i]
-            loss = -m.log_prob(action) * reward
+        probs = self.network(
+            torch.stack(
+                [self.observation_as_network_input(t[0]) for t in to_train_from]
+            )
+        )
+        if log:
+            print(probs[0])
+        log_probs = torch.zeros(len(probs))
+        for i in range(len(probs)):
+            log_probs[i] = Categorical(probs[i]).log_prob(to_train_from[i][1])
 
-            loss.backward()
-            total_loss += loss
+        rewards_to_go = torch.tensor([t[2] for t in to_train_from])
+        loss = (-log_probs * rewards_to_go).mean()
 
-        for i in self.positive_replay_history:
-            probs = self.nn(torch.tensor([self.ob_to_tensor(obs[i])]))
-            m = torch.distributions.Categorical(probs)
-            action = actions[i]
-            reward = rewards_to_go[i]
-            loss = -m.log_prob(action) * reward
+        if log:
+            print(loss)
 
-            loss.backward()
-            total_loss += loss
-
-        print(f"loss: {loss}")
+        loss.backward()
 
         self.optimizer.step()
 
-        torch.save(self.nn, f"savepoints/policy_gradient_{self.board_size}.pk")
+        if log:
+            print(f"Saving network to file {self.network_name}")
+        torch.save(self.network, self.network_name)
 
-        self.history = []
+    def probabilities(self, observation):
+        return self.network(self.observation_as_network_input(observation)[None])
 
-    def act(self, ob, eps=0.0):
-        # Take random action (1-eps)% and play according to qnetwork_local
-        # best action at this observation otherwise
-        if random.random() < eps:
-            return self.action_space.sample()
-
-        # Take an action according to policy
-
-        probs = self.nn(torch.tensor([self.ob_to_tensor(ob)]))
-        if self.time_step % 1000 == 0:
-            print(f"PROBS: {probs}")
-        self.time_step += 1
-
-        action = torch.multinomial(probs, num_samples=1)
-        return action
-
-    def ob_to_tensor(self, ob):
-        return [
+    def observation_as_network_input(self, ob):
+        return torch.tensor(
             [
                 [
-                    1.0 if ob[1][-1] == [x, y] else 0.0
-                    for x in range(self.board_size)
-                    for y in range(self.board_size)
-                ]
-            ],
-            [
+                    [
+                        1.0 if ob[1][-1] == [x, y] else 0.0
+                        for x in range(self.board_size)
+                        for y in range(self.board_size)
+                    ]
+                ],
                 [
-                    1.0 if [x, y] in ob[1][:-1] else 0.0
-                    for x in range(self.board_size)
-                    for y in range(self.board_size)
-                ]
-            ],
-            [
+                    [
+                        1.0 if [x, y] in ob[1][:-1] else 0.0
+                        for x in range(self.board_size)
+                        for y in range(self.board_size)
+                    ]
+                ],
                 [
-                    1.0 if ob[2] == [x, y] else 0.0
-                    for x in range(self.board_size)
-                    for y in range(self.board_size)
-                ]
-            ],
-        ]
+                    [
+                        1.0 if ob[2] == [x, y] else 0.0
+                        for x in range(self.board_size)
+                        for y in range(self.board_size)
+                    ]
+                ],
+            ]
+        )
 
+    def plot_motion_graph(self, now):
 
-if __name__ == "__main__":
-    agent = PolicyGradientAgent([], 8, 0)
+        X = np.arange(0, self.board_size, 1)
+        Y = np.arange(0, self.board_size, 1)
 
-    agent.update_value([], 1, 0, [], 0)
-    agent.update_value([], 1, 10, [], 0)
-    agent.update_value([], 1, 20, [], 1)
-    agent.update_value([], 1, 0, [], 0)
-    agent.update_value([], 1, -10, [], 0)
-    agent.update_value([], 1, -20, [], 1)
+        U = [[0.0 for _ in Y] for _ in X]
+        V = [[0.0 for _ in X] for _ in Y]
+        for x in X:
+            for y in Y:
+                self.graph_env.snake = [[x, y]]
+                self.graph_env.food = [2, 2]
+                ob = self.graph_env.observation()
+                probs = self.network(self.observation_as_network_input(ob)[None])[0]
+                U[x][y] = probs[LEFT].item() - probs[RIGHT].item()
+                V[x][y] = probs[UP].item() - probs[DOWN].item()
 
-    print(agent.learn())
+        fig, ax = plt.subplots()
+        ax.quiver(X, Y, U, V)
+
+        plt.savefig(f"monitor/{now}-map.png")
+        plt.close("all")

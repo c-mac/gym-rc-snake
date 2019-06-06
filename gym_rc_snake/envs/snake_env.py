@@ -1,17 +1,14 @@
+import time
 import random
 from enum import Enum
-import numpy as np
 import gym
-import pyglet
+import torch
 from gym import spaces
 from gym.envs.classic_control import rendering
 
-# from gym.utils import seeding
-
 WINDOW_SIZE = 800
 BOARD_SIZE = 6
-SPACE_SIZE = WINDOW_SIZE / BOARD_SIZE
-START_PADDING = 2
+START_PADDING = 0
 
 
 class SnakeMove(Enum):
@@ -21,21 +18,30 @@ class SnakeMove(Enum):
     UP = 3
 
 
-class SnakeRCEnv(gym.Env):
-    # metadata = {'render.modes': ['human']}
+TRANSFORMATIONS = {
+    SnakeMove.DOWN.value: [0, -1],
+    SnakeMove.UP.value: [0, 1],
+    SnakeMove.RIGHT.value: [1, 0],
+    SnakeMove.LEFT.value: [-1, 0],
+}
 
-    def __init__(self):
-        # Left, up, right, down
-        self.generate_board()
+
+class SnakeRCEnv(gym.Env):
+    def __init__(self, board_size=BOARD_SIZE, render=False):
         self.action_space = spaces.Discrete(4)
-        self.viewer = rendering.Viewer(WINDOW_SIZE, WINDOW_SIZE)
+        if render:
+            self.viewer = rendering.Viewer(WINDOW_SIZE, WINDOW_SIZE)
         self.last_action = SnakeMove.RIGHT.value
-        self.board_size = BOARD_SIZE
+        self.board_size = board_size
+        self.space_size = WINDOW_SIZE / BOARD_SIZE
+        self.generate_board()
 
     def step(self, action):
         """
         Return: observation, reward, done, info
         """
+
+        action = action.item()
         new_head = self.new_head(action)
 
         if not self.valid_action(action):
@@ -54,12 +60,12 @@ class SnakeRCEnv(gym.Env):
 
             if new_head == self.food:
                 reward = 1.0
-                if len(self.snake) > BOARD_SIZE:
+                if len(self.snake) == self.board_size ** 2:
                     done = True
                 while not done and self.food in self.snake:
                     self.food = [
-                        random.randint(START_PADDING, BOARD_SIZE - START_PADDING),
-                        random.randint(START_PADDING, BOARD_SIZE - START_PADDING),
+                        random.randint(0, self.board_size - 1),
+                        random.randint(0, self.board_size - 1),
                     ]
             else:
                 self.snake = self.snake[1:]
@@ -72,20 +78,11 @@ class SnakeRCEnv(gym.Env):
         return not (self.last_action == action or abs(self.last_action - action) == 2)
 
     def new_head(self, action):
+        old_head = self.snake[-1]
 
-        x = self.snake[-1][0]
-        y = self.snake[-1][1]
+        transform = TRANSFORMATIONS[action]
 
-        if action == SnakeMove.DOWN.value:
-            y -= 1
-        if action == SnakeMove.UP.value:
-            y += 1
-        if action == SnakeMove.RIGHT.value:
-            x += 1
-        if action == SnakeMove.LEFT.value:
-            x -= 1
-
-        return [x, y]
+        return [old_head[0] + transform[0], old_head[1] + transform[1]]
 
     def snake_dead(self):
         head = self.snake[-1]
@@ -93,7 +90,10 @@ class SnakeRCEnv(gym.Env):
         if head in tail:
             return -1.0
         elif (
-            head[0] >= BOARD_SIZE or head[0] < 0 or head[1] >= BOARD_SIZE or head[1] < 0
+            head[0] >= self.board_size
+            or head[0] < 0
+            or head[1] >= self.board_size
+            or head[1] < 0
         ):
             return -1.0
         return False
@@ -104,13 +104,13 @@ class SnakeRCEnv(gym.Env):
 
     def generate_board(self):
         start_head = [
-            random.randint(START_PADDING, BOARD_SIZE - 1 - START_PADDING),
-            random.randint(START_PADDING, BOARD_SIZE - 1 - START_PADDING),
+            random.randint(START_PADDING, self.board_size - 1 - START_PADDING),
+            random.randint(START_PADDING, self.board_size - 1 - START_PADDING),
         ]
         self.snake = [start_head, [start_head[0] + 1, start_head[1]]]
         self.food = [
-            random.randint(0, BOARD_SIZE - 1),
-            random.randint(0, BOARD_SIZE - 1),
+            random.randint(0, self.board_size - 1),
+            random.randint(0, self.board_size - 1),
         ]
 
     def render(self, mode="human", close=False):
@@ -123,14 +123,14 @@ class SnakeRCEnv(gym.Env):
         return self.viewer.render(return_rgb_array=mode == "rgb_array")
 
     def render_square(self, x, y, color):
-        x *= SPACE_SIZE
-        y *= SPACE_SIZE
+        x *= self.space_size
+        y *= self.space_size
         square = rendering.FilledPolygon(
             [
                 (x, y),
-                (x + SPACE_SIZE, y),
-                (x + SPACE_SIZE, y + SPACE_SIZE),
-                (x, y + SPACE_SIZE),
+                (x + self.space_size, y),
+                (x + self.space_size, y + self.space_size),
+                (x, y + self.space_size),
             ]
         )
         square.set_color(*color)
