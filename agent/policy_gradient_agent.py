@@ -45,7 +45,7 @@ class PolicyGradientAgent:
 
         self.history = []
         self.graph_env = SnakeRCEnv()
-        self.optimizer = optim.SGD(self.network.parameters(), lr=1e-2)
+        self.optimizer = optim.SGD(self.network.parameters(), lr=0.1)
         self.t = 0
 
     def load_network(self, filename):
