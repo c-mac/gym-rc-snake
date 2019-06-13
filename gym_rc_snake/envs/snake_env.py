@@ -1,13 +1,11 @@
-import time
 import random
 from enum import Enum
 import gym
-import torch
 from gym import spaces
 from gym.envs.classic_control import rendering
 
 WINDOW_SIZE = 800
-BOARD_SIZE = 6
+BOARD_SIZE = 8
 START_PADDING = 0
 
 
@@ -49,7 +47,7 @@ class SnakeRCEnv(gym.Env):
         else:
             self.last_action = action
 
-        reward = 0
+        reward = -0.1
         done = False
 
         self.snake.append(new_head)

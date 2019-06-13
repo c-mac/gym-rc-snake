@@ -72,6 +72,9 @@ class PolicyGradientAgent:
 
         probabilities *= self.action_mask(observation[0])
 
+        if probabilities.sum() == 0.0:
+            probabilities += 1.0
+
         return torch.multinomial(probabilities, num_samples=1)[0]
 
     def action_mask(self, last_move):
@@ -133,7 +136,9 @@ class PolicyGradientAgent:
             print(probs[0])
         log_probs = torch.zeros(len(probs))
         for i in range(len(probs)):
-            log_probs[i] = Categorical(probs[i]).log_prob(to_train_from[i][1])
+            log_probs[i] = min(
+                [Categorical(probs[i]).log_prob(to_train_from[i][1]), -0.05]
+            )
 
         rewards_to_go = torch.tensor([t[2] for t in to_train_from])
         loss = (-log_probs * rewards_to_go).mean()

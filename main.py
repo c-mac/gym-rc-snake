@@ -13,8 +13,8 @@ register(id="snake-rc-v0", entry_point="gym_rc_snake.envs:SnakeRCEnv")
 
 if __name__ == "__main__":
     GRAPH = True
-    RENDER = True
-    TRAIN = False
+    RENDER = False
+    TRAIN = True
 
     logger.set_level(logger.DEBUG)
 
@@ -24,8 +24,9 @@ if __name__ == "__main__":
     done = False
     reward = 0
     rewards_iter = 0
-    sum_rewards = []
+    episode_rewards = []
     sum_steps = []
+    step_rewards = []
     test_episodes = 200
     training_episodes = 1000
     total_episodes = 0
@@ -37,14 +38,19 @@ if __name__ == "__main__":
             episode_total_steps = 0
             for t in range(test_episodes):
                 ob = env.reset()
-                for i in range(200):
+                episode_length = 0
+                while True:
                     action = agent.act(ob)
                     ob, reward, done, info = env.step(action)
+                    if episode_length > 1000:
+                        reward = -10
+                        done = True
                     episode_reward += reward
                     episode_total_steps += 1
+                    episode_length += 1
                     if RENDER:
                         env.render()
-                        time.sleep(0.02)
+                        time.sleep(0.07)
                     if done:
                         env.close()
                         break
@@ -54,12 +60,13 @@ if __name__ == "__main__":
 
             if GRAPH:
                 rewards_iter += 1
-                sum_rewards.append(episode_reward / episode_total_steps)
+                episode_rewards.append(episode_reward / test_episodes)
+                step_rewards.append(episode_reward / episode_total_steps)
                 sum_steps.append(episode_total_steps / test_episodes)
                 if rewards_iter % 1 == 0:
                     plt.subplot(2, 1, 1)
-                    plt.plot(np.arange(len(sum_rewards)), sum_rewards)
-                    plt.ylabel("Avg. Reward per Step")
+                    plt.plot(np.arange(len(episode_rewards)), episode_rewards)
+                    plt.ylabel("Avg. Reward per Episode")
 
                     plt.subplot(2, 1, 2)
                     plt.plot(np.arange(len(sum_steps)), sum_steps)
@@ -74,12 +81,17 @@ if __name__ == "__main__":
 
         if TRAIN:
             for t in range(training_episodes):
+                episode_length = 0
                 ob = env.reset()
-                for i in range(100):
+                while True:
                     action = agent.act(ob)
                     new_ob, reward, done, info = env.step(action)
+                    if episode_length > 1000:
+                        reward = -10
+                        done = True
                     agent.update_value(ob, action, reward, new_ob, done)
                     ob = new_ob
+                    episode_length += 1
                     if done:
                         env.close()
                         break
