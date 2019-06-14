@@ -27,8 +27,8 @@ if __name__ == "__main__":
     episode_rewards = []
     sum_steps = []
     step_rewards = []
-    test_episodes = 200
-    training_episodes = 1000
+    test_episodes = 500
+    training_episodes = 500
     total_episodes = 0
     now = int(time.time())
 
@@ -42,7 +42,7 @@ if __name__ == "__main__":
                 while True:
                     action = agent.act(ob)
                     ob, reward, done, info = env.step(action)
-                    if episode_length > 1000:
+                    if episode_length > 200:
                         reward = -10
                         done = True
                     episode_reward += reward
@@ -50,7 +50,7 @@ if __name__ == "__main__":
                     episode_length += 1
                     if RENDER:
                         env.render()
-                        time.sleep(0.07)
+                        time.sleep(0.05)
                     if done:
                         env.close()
                         break

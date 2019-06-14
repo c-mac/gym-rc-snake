@@ -40,6 +40,7 @@ class SnakeRCEnv(gym.Env):
         """
 
         action = action.item()
+        head = self.snake[-1]
         new_head = self.new_head(action)
 
         if not self.valid_action(action):
@@ -47,7 +48,10 @@ class SnakeRCEnv(gym.Env):
         else:
             self.last_action = action
 
-        reward = -0.1
+        prev_distance = abs(head[0] - self.food[0]) + abs(head[1] - self.food[1])
+        new_distance = abs(new_head[0] - self.food[0]) + abs(new_head[1] - self.food[1])
+
+        reward = -0.01 + 0.01 * (prev_distance - new_distance)
         done = False
 
         self.snake.append(new_head)

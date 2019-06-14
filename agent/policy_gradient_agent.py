@@ -117,6 +117,7 @@ class PolicyGradientAgent:
             return
 
         rewards_to_go /= std
+
         if log:
             print(rewards_to_go)
 
@@ -136,11 +137,11 @@ class PolicyGradientAgent:
             print(probs[0])
         log_probs = torch.zeros(len(probs))
         for i in range(len(probs)):
-            log_probs[i] = min(
-                [Categorical(probs[i]).log_prob(to_train_from[i][1]), -0.05]
-            )
+            log_probs[i] = Categorical(probs[i]).log_prob(to_train_from[i][1])
 
         rewards_to_go = torch.tensor([t[2] for t in to_train_from])
+        log_probs = log_probs - log_probs.mean()
+        log_probs = log_probs / log_probs.std()
         loss = (-log_probs * rewards_to_go).mean()
 
         if log:
