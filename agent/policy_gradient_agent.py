@@ -45,7 +45,7 @@ class PolicyGradientAgent:
 
         self.history = []
         self.graph_env = SnakeRCEnv()
-        self.optimizer = optim.SGD(self.network.parameters(), lr=0.1)
+        self.optimizer = optim.SGD(self.network.parameters(), lr=1e-2)
         self.t = 0
 
     def load_network(self, filename):
@@ -56,7 +56,7 @@ class PolicyGradientAgent:
             network = torch.load(filename)
             print(f"Successfully loaded network from file: {filename}")
             return network
-        except Exception:
+        except Exception as e:
             print(f"Could not load network from {filename}, creating a new one")
             return Network(self.board_size)
 
@@ -128,16 +128,14 @@ class PolicyGradientAgent:
 
         self.optimizer.zero_grad()
 
-        probs = self.network(
+        log_probs = self.network(
             torch.stack(
                 [self.observation_as_network_input(t[0]) for t in to_train_from]
             )
         )
-        if log:
-            print(probs[0])
-        log_probs = torch.zeros(len(probs))
-        for i in range(len(probs)):
-            log_probs[i] = Categorical(probs[i]).log_prob(to_train_from[i][1])
+        actions = [[h[1]] for h in to_train_from]
+
+        log_probs = log_probs.gather(1, torch.tensor(actions)).squeeze()
 
         rewards_to_go = torch.tensor([t[2] for t in to_train_from])
         loss = (-log_probs * rewards_to_go).mean()
@@ -154,7 +152,9 @@ class PolicyGradientAgent:
         torch.save(self.network, self.network_name)
 
     def probabilities(self, observation):
-        return self.network(self.observation_as_network_input(observation)[None])
+        return torch.exp(
+            self.network(self.observation_as_network_input(observation)[None])
+        )
 
     def observation_as_network_input(self, ob):
         return torch.tensor(
@@ -195,7 +195,7 @@ class PolicyGradientAgent:
                 self.graph_env.snake = [[x, y]]
                 self.graph_env.food = [2, 2]
                 ob = self.graph_env.observation()
-                probs = self.network(self.observation_as_network_input(ob)[None])[0]
+                probs = self.probabilities(ob)
                 U[x][y] = probs[LEFT].item() - probs[RIGHT].item()
                 V[x][y] = probs[UP].item() - probs[DOWN].item()
 
