@@ -28,8 +28,9 @@ class PPOAgent:
     Use PPO
     """
 
-    def __init__(self, action_space, board_size, seed=12345, network_name=None):
-        random.seed(seed)
+    def __init__(self, action_space, board_size, seed=None, network_name=None):
+        if seed:
+            random.seed(seed)
         if network_name:
             self.network_name = (
                 f"savepoints/{network_name}-policy_gradient_"
@@ -75,12 +76,12 @@ class PPOAgent:
             if self.t % 1000 == 0:
                 print(probabilities)
 
-            probabilities *= self.action_mask(observation[0])
+            # probabilities *= self.action_mask(observation[0])
 
             if probabilities.sum() == 0.0:
                 probabilities += 1.0
 
-            return torch.multinomial(probabilities, num_samples=1)[0]
+            return torch.multinomial(probabilities, num_samples=1)[0].item()
 
     def action_mask(self, last_move):
         action_mask = torch.ones(self.action_space.n)
@@ -99,9 +100,11 @@ class PPOAgent:
             self.learn_from_history(self.history)
             self.history = []
 
-    def ppo_history(self, state, action_taken, reward, clip_value=0.05):
-        input = torch.stack(list(map(self.observation_as_network_input, state)))
-        action_taken = torch.stack(action_taken).view(-1, 1)
+    def ppo_history(self, state, action_taken, reward, clip_value=0.1):
+        input = torch.stack(
+            list(map(self.cartpole_observation_as_network_input, state))
+        )
+        action_taken = torch.tensor(action_taken).view(-1, 1)
         reward = torch.stack(reward)
 
         # How likely our action was under our old policy
@@ -150,7 +153,7 @@ class PPOAgent:
         if log:
             print(rewards_to_go)
 
-        for _ in range(4):
+        for _ in range(1):
             loss = self.ppo_history(
                 [(history[i].observation) for i in range(len(history))],
                 [history[i].action for i in range(len(history))],
@@ -178,7 +181,7 @@ class PPOAgent:
 
     def probabilities(self, observation):
         return torch.exp(
-            self.network(self.observation_as_network_input(observation)[None])
+            self.network(self.cartpole_observation_as_network_input(observation)[None])
         )[0]
 
     def observation_as_network_input(self, ob):
@@ -207,6 +210,9 @@ class PPOAgent:
                 ],
             ]
         )
+
+    def cartpole_observation_as_network_input(self, ob):
+        return torch.tensor(ob).float()
 
     def plot_motion_graph(self, now):
 

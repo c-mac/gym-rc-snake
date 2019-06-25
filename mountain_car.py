@@ -9,14 +9,10 @@ from gym import logger
 from agent.policy_gradient_agent import PolicyGradientAgent
 from agent.ppo_agent import PPOAgent
 
-from gym.envs.registration import register
-
-register(id="snake-rc-v0", entry_point="gym_rc_snake.envs:SnakeRCEnv")
-
 top_level_stats = []
 
 
-def record_stats(rewards, lengths, foods, stats_file=None):
+def record_stats(rewards, lengths, stats_file=None):
     """
     From
     https://spinningup.openai.com/en/latest/spinningup/spinningup.html#learn-by-doing:
@@ -28,11 +24,7 @@ def record_stats(rewards, lengths, foods, stats_file=None):
     """
     # So we're going to get in a whole bunch of stats and we want to pull out the mean,
     # std, min and max for all of them!
-    stats = {
-        "reward": meta_stats(rewards),
-        "length": meta_stats(lengths),
-        "food": meta_stats(foods),
-    }
+    stats = {"reward": meta_stats(rewards), "length": meta_stats(lengths)}
     print(stats)
     top_level_stats.append(stats)
     if stats_file:
@@ -52,13 +44,13 @@ def meta_stats(stats):
 
 if __name__ == "__main__":
     GRAPH = True
-    RENDER = False
+    RENDER = True
     TRAIN = True
 
     logger.set_level(logger.DEBUG)
 
-    env = gym.make("snake-rc-v0", render=RENDER)
-    agent = PPOAgent(env.action_space, env.board_size, seed=None, network_name="main")
+    env = gym.make("MountainCar-v0")
+    agent = PPOAgent(env.action_space, 0, seed=None, network_name="mountain-car")
 
     done = False
     reward = 0
@@ -79,33 +71,22 @@ if __name__ == "__main__":
             for t in range(test_episodes):
                 ob = env.reset()
                 episode_length = 0
-                episode_food = 0
                 episode_reward = 0
                 while True:
                     action = agent.act(ob)
                     ob, reward, done, info = env.step(action)
-                    if episode_length > 200:
-                        reward = -10
-                        done = True
-                    if reward == 1.0:
-                        episode_food += 1
                     episode_reward += reward
                     episode_length += 1
                     if RENDER:
                         env.render()
                         time.sleep(0.05)
                     if done:
-                        episode_stats.append(
-                            (episode_reward, episode_length, episode_food)
-                        )
+                        episode_stats.append((episode_reward, episode_length))
                         env.close()
                         break
 
             record_stats(
-                [e[0] for e in episode_stats],
-                [e[1] for e in episode_stats],
-                [e[2] for e in episode_stats],
-                stats_file,
+                [e[0] for e in episode_stats], [e[1] for e in episode_stats], stats_file
             )
 
         if GRAPH:
