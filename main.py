@@ -7,6 +7,7 @@ import numpy as np
 
 from gym import logger
 from agent.policy_gradient_agent import PolicyGradientAgent
+from agent.ppo_agent import PPOAgent
 
 from gym.envs.registration import register
 
@@ -57,7 +58,7 @@ if __name__ == "__main__":
     logger.set_level(logger.DEBUG)
 
     env = gym.make("snake-rc-v0", render=RENDER)
-    agent = PolicyGradientAgent(env.action_space, env.board_size, 12345, "main")
+    agent = PPOAgent(env.action_space, env.board_size, 54321, "main")
 
     done = False
     reward = 0
@@ -70,6 +71,7 @@ if __name__ == "__main__":
     total_episodes = 0
     now = int(time.time())
     stats_file = open(f"monitor/{now}_stats.json", "w")
+    print(f"Recording states to: {stats_file}")
 
     while True:
         with torch.no_grad():

@@ -51,7 +51,7 @@ class SnakeRCEnv(gym.Env):
         prev_distance = abs(head[0] - self.food[0]) + abs(head[1] - self.food[1])
         new_distance = abs(new_head[0] - self.food[0]) + abs(new_head[1] - self.food[1])
 
-        reward = -0.01 + 0.01 * (prev_distance - new_distance)
+        reward = -0.02 + 0.01 * (prev_distance - new_distance)
         done = False
 
         self.snake.append(new_head)
