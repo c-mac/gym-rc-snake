@@ -1,52 +1,81 @@
+import numpy as np
 import random
-from enum import Enum
 import gym
+
+from enum import IntEnum
 from gym import spaces
 from gym.envs.classic_control import rendering
 
 WINDOW_SIZE = 800
 BOARD_SIZE = 8
-START_PADDING = 0
+START_PADDING = 1
 
 
-class SnakeMove(Enum):
-    LEFT = 0
-    DOWN = 1
-    RIGHT = 2
-    UP = 3
+class Move(IntEnum):
+    RIGHT = -1
+    STRAIGHT = 0
+    LEFT = 1
 
 
-TRANSFORMATIONS = {
-    SnakeMove.DOWN.value: [0, -1],
-    SnakeMove.UP.value: [0, 1],
-    SnakeMove.RIGHT.value: [1, 0],
-    SnakeMove.LEFT.value: [-1, 0],
-}
+class Direction(IntEnum):
+    NORTH = 0
+    WEST = 1
+    SOUTH = 2
+    EAST = 3
+
+
+# These are listed in counter-clockwise order. This means that you can "add" Moves
+# to them to get a turn.  For instance, if our current direction is NORTH (or zero as
+# noted below), we can turn RIGHT by adding RIGHT to our index (returning us WEST as our
+# next transformation)
+TRANSFORMATIONS = [
+    # NORTH
+    [0, 1],
+    # WEST
+    [-1, 0],
+    # SOUTH
+    [0, -1],
+    # EAST
+    [1, 0],
+]
 
 
 class SnakeRCEnv(gym.Env):
     def __init__(self, board_size=BOARD_SIZE, render=False):
-        self.action_space = spaces.Discrete(4)
-        if render:
-            self.viewer = rendering.Viewer(WINDOW_SIZE, WINDOW_SIZE)
-        self.last_action = SnakeMove.RIGHT.value
+        self.action_space = spaces.Discrete(3)
+        self.current_direction = Direction.NORTH
         self.board_size = board_size
         self.space_size = WINDOW_SIZE / BOARD_SIZE
         self.generate_board()
+        self.observation_space = spaces.Tuple(
+            (
+                spaces.Discrete(4),
+                spaces.Box(low=0, high=2, shape=(board_size, board_size), dtype=np.int),
+            )
+        )
+        if render:
+            self.viewer = rendering.Viewer(WINDOW_SIZE, WINDOW_SIZE)
+
+    def turn(self, action):
+        new_direction = self.current_direction + action
+
+        if new_direction == -1:
+            # We were going NORTH and we turned RIGHT
+            new_direction = Direction.EAST
+        if new_direction == 4:
+            # We were going EAST and we turned LEFT
+            new_direction = Direction.NORTH
+
+        return new_direction
 
     def step(self, action):
         """
         Return: observation, reward, done, info
         """
-
-        action = action.item()
+        action = action - 1
         head = self.snake[-1]
-        new_head = self.new_head(action)
-
-        if not self.valid_action(action):
-            new_head = self.new_head(self.last_action)
-        else:
-            self.last_action = action
+        self.current_direction = self.turn(action)
+        new_head = self.new_head(self.current_direction)
 
         prev_distance = abs(head[0] - self.food[0]) + abs(head[1] - self.food[1])
         new_distance = abs(new_head[0] - self.food[0]) + abs(new_head[1] - self.food[1])
@@ -74,17 +103,15 @@ class SnakeRCEnv(gym.Env):
 
             return (ob, reward, done, None)
 
-    def valid_action(self, action):
-        # Up and Down are 0 and 2, so their difference is 2
-        # The same applies to left and right (1 and 3)
-        return not (self.last_action == action or abs(self.last_action - action) == 2)
-
-    def new_head(self, action):
+    def new_head(self, current_direction, step_size=1):
         old_head = self.snake[-1]
 
-        transform = TRANSFORMATIONS[action]
+        transform = TRANSFORMATIONS[current_direction]
 
-        return [old_head[0] + transform[0], old_head[1] + transform[1]]
+        return [
+            old_head[0] + transform[0] * step_size,
+            old_head[1] + transform[1] * step_size,
+        ]
 
     def snake_dead(self):
         head = self.snake[-1]
@@ -105,11 +132,12 @@ class SnakeRCEnv(gym.Env):
         return self.observation()
 
     def generate_board(self):
-        start_head = [
-            random.randint(START_PADDING, self.board_size - 1 - START_PADDING),
-            random.randint(START_PADDING, self.board_size - 1 - START_PADDING),
+        self.snake = [
+            [
+                random.randint(START_PADDING, self.board_size - 1 - START_PADDING),
+                random.randint(START_PADDING, self.board_size - 1 - START_PADDING),
+            ]
         ]
-        self.snake = [start_head, [start_head[0] + 1, start_head[1]]]
         self.food = [
             random.randint(0, self.board_size - 1),
             random.randint(0, self.board_size - 1),
@@ -139,4 +167,12 @@ class SnakeRCEnv(gym.Env):
         return square
 
     def observation(self):
-        return (self.last_action, self.snake, self.food)
+        return (self.current_direction, self.snake, self.food)
+
+
+#         board = np.zeros([self.board_size, self.board_size], dtype=np.int)
+#         for s in self.snake:
+#             board[np.clip(s[0], 0, 7), np.clip(s[1], 0, 7)] = 1
+#         board[self.food[0], self.food[1]] = 2
+
+#         return (self.current_direction, board)
