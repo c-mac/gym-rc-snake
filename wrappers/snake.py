@@ -99,7 +99,40 @@ class SnakePerspective(ObservationWrapper):
 class SnakePerspectiveWithPrevActions(ObservationWrapper):
     def observation(self, observation):
         if not getattr(self, "observations", None):
-            self.directions = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            self.directions = [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ]
 
         current_direction, snake, food = observation
         head = snake[-1]
@@ -125,6 +158,6 @@ class SnakePerspectiveWithPrevActions(ObservationWrapper):
         ob = list(map(what_is_there, [left2, left, straight, straight2, right, right2]))
 
         self.directions.append(self.current_direction)
-        self.directions = self.directions[-10:]
+        self.directions = self.directions[-32:]
 
         return torch.tensor(ob + self.directions)
