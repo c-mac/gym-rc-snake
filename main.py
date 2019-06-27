@@ -8,7 +8,12 @@ from agent.network import fc, lstm
 from stats import Stats
 
 from gym import logger
-from wrappers.snake import BoardOnly, SnakePerspective, SnakePerspectiveMultipleFrames
+from wrappers.snake import (
+    BoardOnly,
+    SnakePerspective,
+    SnakePerspectiveWithPrevActions,
+    SnakePerspectiveMultipleFrames,
+)
 from gym.envs.registration import register
 
 register(id="snake-rc-v0", entry_point="gym_rc_snake.envs:SnakeRCEnv")
@@ -60,8 +65,8 @@ if __name__ == "__main__":
 
     env = gym.make("snake-rc-v0", render=RENDER)
     env.reset()
-    env = SnakePerspective(env)
-    network_fn = fc(6, env.action_space.n)
+    env = SnakePerspectiveWithPrevActions(env)
+    network_fn = fc(16, env.action_space.n)
     agent = PPOAgent(
         action_space=env.action_space,
         network_fn=network_fn,

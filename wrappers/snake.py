@@ -124,9 +124,7 @@ class SnakePerspectiveWithPrevActions(ObservationWrapper):
 
         ob = list(map(what_is_there, [left2, left, straight, straight2, right, right2]))
 
-        return ob
-
         self.directions.append(self.current_direction)
-        self.directions = self.observations[-10:]
+        self.directions = self.directions[-10:]
 
-        return torch.tensor(ob + self.directions).flatten(1)
+        return torch.tensor(ob + self.directions)
