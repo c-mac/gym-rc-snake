@@ -70,16 +70,16 @@ class SnakePerspectiveMultipleFrames(ObservationWrapper):
 
 class SnakePerspective(ObservationWrapper):
     def observation(self, observation):
-        if not getattr(self, "observations", None):
-            self.observations = [[0, 0, 0, 0, 0, 0]]
-
         current_direction, snake, food = observation
-        left = self.new_head(self.turn(Move.LEFT))
-        left2 = self.new_head(self.turn(Move.LEFT), 2)
-        straight = self.new_head(self.turn(Move.STRAIGHT))
-        straight2 = self.new_head(self.turn(Move.STRAIGHT), 2)
-        right = self.new_head(self.turn(Move.RIGHT))
-        right2 = self.new_head(self.turn(Move.RIGHT), 2)
+        head = snake[-1]
+        left = self.new_head(head=head, direction=self.turn(Move.LEFT))
+        left2 = self.new_head(head=head, direction=self.turn(Move.LEFT), step_size=2)
+        straight = self.new_head(head=head, direction=self.turn(Move.STRAIGHT))
+        straight2 = self.new_head(
+            head=head, direction=self.turn(Move.STRAIGHT), step_size=2
+        )
+        right = self.new_head(head=head, direction=self.turn(Move.RIGHT))
+        right2 = self.new_head(head=head, direction=self.turn(Move.RIGHT), step_size=2)
 
         def what_is_there(location):
             if location in snake[:-1]:
@@ -93,7 +93,40 @@ class SnakePerspective(ObservationWrapper):
 
         ob = list(map(what_is_there, [left2, left, straight, straight2, right, right2]))
 
-        self.observations.append(ob)
-        self.observations = self.observations[-1:]
+        return ob
 
-        return torch.tensor(self.observations).flatten(1)
+
+class SnakePerspectiveWithPrevActions(ObservationWrapper):
+    def observation(self, observation):
+        if not getattr(self, "observations", None):
+            self.directions = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+        current_direction, snake, food = observation
+        head = snake[-1]
+        left = self.new_head(head=head, direction=self.turn(Move.LEFT))
+        left2 = self.new_head(head=head, direction=self.turn(Move.LEFT), step_size=2)
+        straight = self.new_head(head=head, direction=self.turn(Move.STRAIGHT))
+        straight2 = self.new_head(
+            head=head, direction=self.turn(Move.STRAIGHT), step_size=2
+        )
+        right = self.new_head(head=head, direction=self.turn(Move.RIGHT))
+        right2 = self.new_head(head=head, direction=self.turn(Move.RIGHT), step_size=2)
+
+        def what_is_there(location):
+            if location in snake[:-1]:
+                return 1
+            if location == food:
+                return -1
+            if location[0] > 7 or location[0] < 0 or location[1] > 7 or location[1] < 0:
+                return 1
+            else:
+                return 0
+
+        ob = list(map(what_is_there, [left2, left, straight, straight2, right, right2]))
+
+        return ob
+
+        self.directions.append(self.current_direction)
+        self.directions = self.observations[-10:]
+
+        return torch.tensor(ob + self.directions).flatten(1)

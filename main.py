@@ -60,8 +60,8 @@ if __name__ == "__main__":
 
     env = gym.make("snake-rc-v0", render=RENDER)
     env.reset()
-    env = SnakePerspectiveMultipleFrames(env)
-    network_fn = fc(70, env.action_space.n)
+    env = SnakePerspective(env)
+    network_fn = fc(6, env.action_space.n)
     agent = PPOAgent(
         action_space=env.action_space,
         network_fn=network_fn,
