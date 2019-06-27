@@ -17,9 +17,9 @@ UP = 3
 MOVE_OPPOSITE = {LEFT: RIGHT, DOWN: UP, RIGHT: LEFT, UP: DOWN}
 
 
-class PPOAgent:
+class VPGAgent:
     """
-    Use PPO
+    Use VPG
     """
 
     def __init__(self, action_space, network_fn, network_name=None):
@@ -29,11 +29,9 @@ class PPOAgent:
         self.network_name = network_name
 
         self.network = self.load_network(self.network_name)
-        self.old_network = network_fn()
-        self.old_network.load_state_dict(self.network.state_dict())
 
         self.history = []
-        self.optimizer = optim.Adam(self.network.parameters(), lr=1e-3)
+        self.optimizer = optim.Adam(self.network.parameters(), lr=1e-1)
         self.t = 0
 
     def load_network(self, filename):
@@ -63,12 +61,10 @@ class PPOAgent:
             if probabilities.sum() == 0.0:
                 probabilities += 1.0
 
-            return torch.multinomial(probabilities, num_samples=1)[0].item()
+            if self.t % 1000 == 0:
+                print(probabilities)
 
-    def action_mask(self, last_move):
-        action_mask = torch.ones(self.action_space.n)
-        action_mask[MOVE_OPPOSITE[last_move]] = 0.0
-        return action_mask
+            return torch.multinomial(probabilities, num_samples=1)[0].item()
 
     def update_value(self, *args, **kwargs):
         return self.remember(*args, **kwargs)
@@ -81,34 +77,6 @@ class PPOAgent:
         if len(self.history) > self.batch_size and done:
             self.learn_from_history(self.history)
             self.history = []
-
-    def ppo(self, state, action_taken, reward, clip_value=0.1):
-        input = torch.stack(list(map(lambda x: torch.tensor(x).float(), state)))
-        action_taken = torch.tensor(action_taken).view(-1, 1)
-        reward = torch.stack(reward)
-
-        # How likely our action was under our old policy
-        old_probs = torch.exp(self.old_network(input).view(len(input), -1)).gather(
-            1, action_taken
-        )
-
-        # How likely it was that we would take this action with our current policy
-        new_probs = torch.exp(self.network(input).view(len(input), -1)).gather(
-            1, action_taken
-        )
-
-        # this is r_t_theta in the PPO paper
-        ratio = (new_probs / old_probs).squeeze()
-
-        # this is the left side of the min params
-        # Note that we are using reward here instead of advantage, it's simpler but it
-        # should work about as well
-        surr1 = ratio * reward
-        # This is our clipped, right hand side!
-        surr2 = torch.clamp(ratio, min=1 - clip_value, max=1 + clip_value) * reward
-
-        combined = torch.cat((surr1, surr2)).view(2, len(surr1))
-        return -(combined.min(0).values).mean()
 
     def learn_from_history(self, history, log=False):
         rewards_to_go = torch.zeros(len(history))
@@ -137,28 +105,24 @@ class PPOAgent:
         if log:
             print(rewards_to_go)
 
-        for _ in range(2):
-            loss = self.ppo(
-                [(history[i].observation) for i in range(len(history))],
-                [history[i].action for i in range(len(history))],
-                [rewards_to_go[i] for i in range(len(history))],
-            )
+        states = [history[i].observation for i in range(len(history))]
+        actions = torch.tensor([history[i].action for i in range(len(history))]).view(
+            -1, 1
+        )
+        logits = self.network(
+            torch.stack(list(map(lambda x: torch.tensor(x).float(), states)))
+        )
 
-            self.optimizer.zero_grad()
+        loss = -(logits.gather(1, actions) * rewards_to_go).mean()
 
-            if torch.isnan(loss):
-                import pdb
+        self.optimizer.zero_grad()
 
-                pdb.set_trace()
+        if log:
+            print(f"LOSS: {loss}")
 
-            if log:
-                print(f"LOSS: {loss}")
+        loss.backward()
 
-            self.old_network.load_state_dict(self.network.state_dict())
-
-            loss.backward()
-
-            self.optimizer.step()
+        self.optimizer.step()
 
         if log:
             print(f"Saving network to file {self.network_name}")

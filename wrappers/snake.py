@@ -74,8 +74,13 @@ class SnakePerspective(ObservationWrapper):
         head = snake[-1]
 
         left = self.new_head(head=head, direction=self.turn(Move.LEFT))
+        left2 = self.new_head(head=head, direction=self.turn(Move.LEFT), step_size=2)
         straight = self.new_head(head=head, direction=self.turn(Move.STRAIGHT))
+        straight2 = self.new_head(
+            head=head, direction=self.turn(Move.STRAIGHT), step_size=2
+        )
         right = self.new_head(head=head, direction=self.turn(Move.RIGHT))
+        right2 = self.new_head(head=head, direction=self.turn(Move.RIGHT), step_size=2)
 
         def what_is_there(location):
             if location in snake[:-1]:
@@ -87,7 +92,7 @@ class SnakePerspective(ObservationWrapper):
             else:
                 return 0
 
-        ob = list(map(what_is_there, [left, straight, right]))
+        ob = list(map(what_is_there, [left2, left, straight, straight2, right, right2]))
 
         return ob
 
@@ -98,7 +103,10 @@ class SnakePerspectiveWithPrevActions(ObservationWrapper):
     def __init__(self, env):
         super(SnakePerspectiveWithPrevActions, self).__init__(env)
         self.observation_space = spaces.Box(
-            low=0, high=2, shape=((6 + self.DIRECTION_HISTORY,)), dtype=np.int
+            low=0,
+            high=2,
+            shape=((6 + self.DIRECTION_HISTORY + self.board_size ** 2,)),
+            dtype=np.int,
         )
 
     def observation(self, observation):
@@ -122,7 +130,7 @@ class SnakePerspectiveWithPrevActions(ObservationWrapper):
             if location == food:
                 return -1
             if location[0] > 7 or location[0] < 0 or location[1] > 7 or location[1] < 0:
-                return 1
+                return 2
             else:
                 return 0
 
@@ -131,4 +139,11 @@ class SnakePerspectiveWithPrevActions(ObservationWrapper):
         self.directions.append(self.current_direction)
         self.directions = self.directions[-self.DIRECTION_HISTORY :]
 
-        return torch.tensor(ob + self.directions)
+        board = np.zeros([self.board_size, self.board_size], dtype=np.int)
+        for s in snake[:-1]:
+            board[np.clip(s[0], 0, 7), np.clip(s[1], 0, 7)] = 1
+        board[np.clip(head[0], 0, 7), np.clip(head[1], 0, 7)] = 2
+        board[self.food[0], self.food[1]] = -1
+        board[self.food[0], self.food[1]] = -1
+
+        return torch.tensor(ob + self.directions + list(board.flatten(1)))

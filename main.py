@@ -1,22 +1,20 @@
+import argparse
 import gym
 import time
 import torch
 
-from agent.policy_gradient_agent import PolicyGradientAgent
+from agent.vpg_agent import VPGAgent
 from agent.ppo_agent import PPOAgent
 from agent.network import fc, lstm
 from stats import Stats
 
 from gym import logger
-from wrappers.snake import (
-    EntireBoard,
-    SnakePerspective,
-    SnakePerspectiveWithPrevActions,
-    SnakePerspectiveMultipleFrames,
-)
+from wrappers.snake import SnakePerspectiveWithPrevActions
 from gym.envs.registration import register
 
 register(id="snake-rc-v0", entry_point="gym_rc_snake.envs:SnakeRCEnv")
+
+AGENTS = {"ppo": PPOAgent, "vpg": VPGAgent}
 
 
 def test(env, agent, num_episodes, stats, render=False):
@@ -59,27 +57,44 @@ def train(env, agent, num_episodes):
 
 
 if __name__ == "__main__":
-    logger.set_level(logger.DEBUG)
-    RENDER = True
-    BOARD_SIZE = 8
+    parser = argparse.ArgumentParser(description=None)
+    parser.add_argument(
+        "--env_id", default="snake-rc-v0", help="The environment to run"
+    )
+    parser.add_argument("--render", action="store_true", help="Render test episodes")
+    parser.add_argument(
+        "--test_episodes", default=100, type=int, help="How many episodes to test"
+    )
+    parser.add_argument(
+        "--training_episodes",
+        default=250,
+        type=int,
+        help="How many episodes to train before testing again",
+    )
+    parser.add_argument(
+        "--epochs", default=1000, type=int, help="How many epochs to train"
+    )
+    parser.add_argument("--agent", default="ppo", help="Which agent to use")
 
-    env = gym.make("CartPole-v1")
+    args = parser.parse_args()
+
+    logger.set_level(logger.DEBUG)
+
+    env = gym.make(args.env_id)
     env.reset()
-    # env = SnakePerspectiveWithPrevActions(env)
+    if args.env_id == "snake-rc-v0":
+        env = SnakePerspectiveWithPrevActions(env)
+
     network_fn = fc(sum(env.observation_space.shape), env.action_space.n)
-    agent = PPOAgent(
+    agent = AGENTS[args.agent](
         action_space=env.action_space,
         network_fn=network_fn,
-        network_name="savepoints/snake.pkl",
+        network_name=f"savepoints/{args.env_id}.pkl",
     )
-    stats = Stats("snake")
+    stats = Stats(args.env_id)
 
-    test_episodes = 5
-    training_episodes = 100
-    epochs = 1000
-
-    for _ in range(epochs):
-        test(env, agent, test_episodes, stats, RENDER)
-        train(env, agent, training_episodes)
+    for _ in range(args.epochs):
+        test(env, agent, args.test_episodes, stats, args.render)
+        train(env, agent, args.training_episodes)
 
     env.close()

@@ -4,7 +4,6 @@ import gym
 
 from enum import IntEnum
 from gym import spaces
-from gym.envs.classic_control import rendering
 
 WINDOW_SIZE = 800
 BOARD_SIZE = 8
@@ -41,14 +40,13 @@ TRANSFORMATIONS = [
 
 
 class SnakeRCEnv(gym.Env):
-    def __init__(self, board_size=BOARD_SIZE, render=False):
+    def __init__(self, board_size=BOARD_SIZE):
         self.action_space = spaces.Discrete(3)
         self.current_direction = Direction.NORTH
         self.board_size = board_size
         self.space_size = WINDOW_SIZE / BOARD_SIZE
         self.generate_board()
-        if render:
-            self.viewer = rendering.Viewer(WINDOW_SIZE, WINDOW_SIZE)
+        self.viewer = None
 
     def turn(self, action):
         new_direction = self.current_direction + action
@@ -138,18 +136,23 @@ class SnakeRCEnv(gym.Env):
         ]
 
     def render(self, mode="human", close=False):
+        from gym.envs.classic_control import rendering
+
+        if self.viewer is None:
+            self.viewer = rendering.Viewer(WINDOW_SIZE, WINDOW_SIZE)
+
         for segment in self.snake:
-            square = self.render_square(segment[0], segment[1], (0, 0, 1))
+            square = self.render_square(segment[0], segment[1], (0, 0, 1), rendering)
             self.viewer.add_onetime(square)
 
-        food = self.render_square(self.food[0], self.food[1], (1, 0, 0))
+        food = self.render_square(self.food[0], self.food[1], (1, 0, 0), rendering)
         self.viewer.add_onetime(food)
         return self.viewer.render(return_rgb_array=mode == "rgb_array")
 
-    def render_square(self, x, y, color):
+    def render_square(self, x, y, color, r):
         x *= self.space_size
         y *= self.space_size
-        square = rendering.FilledPolygon(
+        square = r.FilledPolygon(
             [
                 (x, y),
                 (x + self.space_size, y),
@@ -162,11 +165,3 @@ class SnakeRCEnv(gym.Env):
 
     def observation(self):
         return (self.current_direction, self.snake, self.food)
-
-
-#         board = np.zeros([self.board_size, self.board_size], dtype=np.int)
-#         for s in self.snake:
-#             board[np.clip(s[0], 0, 7), np.clip(s[1], 0, 7)] = 1
-#         board[self.food[0], self.food[1]] = 2
-
-#         return (self.current_direction, board)
