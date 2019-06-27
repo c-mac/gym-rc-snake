@@ -5,12 +5,23 @@ from gym import ObservationWrapper, spaces
 from gym_rc_snake.envs.snake_env import Move, Direction
 
 
-class BoardOnly(ObservationWrapper):
+class EntireBoard(ObservationWrapper):
+    def __init__(self, env):
+        super(EntireBoard, self).__init__(env)
+        self.observation_space = spaces.Tuple(
+            (
+                # current direction
+                spaces.Discrete(4),
+                # board shape
+                spaces.Box(
+                    low=0,
+                    high=2,
+                    shape=(self.board_size, self.board_size),
+                    dtype=np.int,
+                ),
+            )
+        )
 
-    # (
-    #     spaces.Discrete(4),
-    #     spaces.Box(low=0, high=2, shape=(board_size, board_size), dtype=np.int),
-    # )
     def observation(self, observation):
         board = np.zeros([self.board_size, self.board_size], dtype=np.int)
         for s in self.snake:
@@ -23,19 +34,8 @@ class BoardOnly(ObservationWrapper):
 class SnakePerspectiveMultipleFrames(ObservationWrapper):
     def observation(self, observation):
         if not getattr(self, "observations", None):
-            self.observation_space = spaces.Box(low=-1, high=2, shape=(10, 7))
-            self.observations = [
-                [0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0],
-            ]
+            self.observation_space = spaces.Box(low=-1, high=2, shape=(70,))
+            self.observations = [[0] * 7] * 10
 
         current_direction, snake, food = observation
         head = snake[-1]
@@ -72,14 +72,10 @@ class SnakePerspective(ObservationWrapper):
     def observation(self, observation):
         current_direction, snake, food = observation
         head = snake[-1]
+
         left = self.new_head(head=head, direction=self.turn(Move.LEFT))
-        left2 = self.new_head(head=head, direction=self.turn(Move.LEFT), step_size=2)
         straight = self.new_head(head=head, direction=self.turn(Move.STRAIGHT))
-        straight2 = self.new_head(
-            head=head, direction=self.turn(Move.STRAIGHT), step_size=2
-        )
         right = self.new_head(head=head, direction=self.turn(Move.RIGHT))
-        right2 = self.new_head(head=head, direction=self.turn(Move.RIGHT), step_size=2)
 
         def what_is_there(location):
             if location in snake[:-1]:
@@ -91,48 +87,23 @@ class SnakePerspective(ObservationWrapper):
             else:
                 return 0
 
-        ob = list(map(what_is_there, [left2, left, straight, straight2, right, right2]))
+        ob = list(map(what_is_there, [left, straight, right]))
 
         return ob
 
 
 class SnakePerspectiveWithPrevActions(ObservationWrapper):
+    DIRECTION_HISTORY = 8
+
+    def __init__(self, env):
+        super(SnakePerspectiveWithPrevActions, self).__init__(env)
+        self.observation_space = spaces.Box(
+            low=0, high=2, shape=((6 + self.DIRECTION_HISTORY,)), dtype=np.int
+        )
+
     def observation(self, observation):
         if not getattr(self, "observations", None):
-            self.directions = [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ]
+            self.directions = [0] * self.DIRECTION_HISTORY
 
         current_direction, snake, food = observation
         head = snake[-1]
@@ -158,6 +129,6 @@ class SnakePerspectiveWithPrevActions(ObservationWrapper):
         ob = list(map(what_is_there, [left2, left, straight, straight2, right, right2]))
 
         self.directions.append(self.current_direction)
-        self.directions = self.directions[-32:]
+        self.directions = self.directions[-self.DIRECTION_HISTORY :]
 
         return torch.tensor(ob + self.directions)

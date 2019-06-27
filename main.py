@@ -9,7 +9,7 @@ from stats import Stats
 
 from gym import logger
 from wrappers.snake import (
-    BoardOnly,
+    EntireBoard,
     SnakePerspective,
     SnakePerspectiveWithPrevActions,
     SnakePerspectiveMultipleFrames,
@@ -63,10 +63,10 @@ if __name__ == "__main__":
     RENDER = True
     BOARD_SIZE = 8
 
-    env = gym.make("snake-rc-v0", render=RENDER)
+    env = gym.make("CartPole-v1")
     env.reset()
-    env = SnakePerspectiveWithPrevActions(env)
-    network_fn = fc(38, env.action_space.n)
+    # env = SnakePerspectiveWithPrevActions(env)
+    network_fn = fc(sum(env.observation_space.shape), env.action_space.n)
     agent = PPOAgent(
         action_space=env.action_space,
         network_fn=network_fn,
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     )
     stats = Stats("snake")
 
-    test_episodes = 50
+    test_episodes = 5
     training_episodes = 100
     epochs = 1000
 
