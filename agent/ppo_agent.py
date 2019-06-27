@@ -35,7 +35,7 @@ class PPOAgent:
         self.old_network.load_state_dict(self.network.state_dict())
 
         self.history = []
-        self.optimizer = optim.Adam(self.network.parameters(), lr=5e-3)
+        self.optimizer = optim.Adam(self.network.parameters(), lr=1e-3)
         self.t = 0
 
     def load_network(self, filename):
@@ -139,7 +139,7 @@ class PPOAgent:
         if log:
             print(rewards_to_go)
 
-        for _ in range(4):
+        for _ in range(8):
             loss = self.ppo(
                 [(history[i].observation) for i in range(len(history))],
                 [history[i].action for i in range(len(history))],

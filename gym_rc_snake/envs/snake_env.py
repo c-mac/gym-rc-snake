@@ -47,12 +47,6 @@ class SnakeRCEnv(gym.Env):
         self.board_size = board_size
         self.space_size = WINDOW_SIZE / BOARD_SIZE
         self.generate_board()
-        self.observation_space = spaces.Tuple(
-            (
-                spaces.Discrete(4),
-                spaces.Box(low=0, high=2, shape=(board_size, board_size), dtype=np.int),
-            )
-        )
         if render:
             self.viewer = rendering.Viewer(WINDOW_SIZE, WINDOW_SIZE)
 
@@ -75,12 +69,12 @@ class SnakeRCEnv(gym.Env):
         action = action - 1
         head = self.snake[-1]
         self.current_direction = self.turn(action)
-        new_head = self.new_head(self.current_direction)
+        new_head = self.new_head()
 
         prev_distance = abs(head[0] - self.food[0]) + abs(head[1] - self.food[1])
         new_distance = abs(new_head[0] - self.food[0]) + abs(new_head[1] - self.food[1])
 
-        reward = -0.02 + 0.01 * (prev_distance - new_distance)
+        reward = -0.03 + 0.01 * (prev_distance - new_distance)
         done = False
 
         self.snake.append(new_head)
@@ -90,7 +84,7 @@ class SnakeRCEnv(gym.Env):
             ob = self.observation()
 
             if new_head == self.food:
-                reward = 1.0
+                reward = 2.0
                 if len(self.snake) == self.board_size ** 2:
                     done = True
                 while not done and self.food in self.snake:
@@ -103,15 +97,15 @@ class SnakeRCEnv(gym.Env):
 
             return (ob, reward, done, None)
 
-    def new_head(self, current_direction, step_size=1):
-        old_head = self.snake[-1]
+    def new_head(self, direction=None, head=None, step_size=1):
+        if not direction:
+            direction = self.current_direction
+        if not head:
+            head = self.snake[-1]
 
-        transform = TRANSFORMATIONS[current_direction]
+        transform = TRANSFORMATIONS[direction]
 
-        return [
-            old_head[0] + transform[0] * step_size,
-            old_head[1] + transform[1] * step_size,
-        ]
+        return [head[0] + transform[0] * step_size, head[1] + transform[1] * step_size]
 
     def snake_dead(self):
         head = self.snake[-1]
