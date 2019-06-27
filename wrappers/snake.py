@@ -87,7 +87,7 @@ class SnakePerspective(ObservationWrapper):
             if location == food:
                 return -1
             if location[0] > 7 or location[0] < 0 or location[1] > 7 or location[1] < 0:
-                return 2
+                return 1
             else:
                 return 0
 

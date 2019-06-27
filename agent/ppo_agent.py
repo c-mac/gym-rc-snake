@@ -139,7 +139,7 @@ class PPOAgent:
         if log:
             print(rewards_to_go)
 
-        for _ in range(8):
+        for _ in range(3):
             loss = self.ppo(
                 [(history[i].observation) for i in range(len(history))],
                 [history[i].action for i in range(len(history))],
