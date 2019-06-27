@@ -43,7 +43,9 @@ class LSTM_FC(nn.Module):
         super(LSTM_FC, self).__init__()
         self.lstm = nn.LSTM(observation_size, 6)
         self.x1 = nn.Linear(6, 512)
-        self.x2 = nn.Linear(512, output_size)
+        self.x2 = nn.Linear(512, 1024)
+        self.x3 = nn.Linear(1024, 512)
+        self.x4 = nn.Linear(512, output_size)
         self.out = nn.LogSoftmax(dim=2)
 
     def forward(self, x):
@@ -52,6 +54,7 @@ class LSTM_FC(nn.Module):
         x, _ = self.lstm(x)
         x = F.relu(self.x1(x))
         x = F.relu(self.x2(x))
+        x = F.relu(self.x4(x))
         return self.out(x)
 
 
