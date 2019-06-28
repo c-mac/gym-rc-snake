@@ -24,14 +24,14 @@ class VPGAgent:
 
     def __init__(self, action_space, network_fn, network_name=None):
         self.action_space = action_space
-        self.batch_size = 1024
+        self.batch_size = 256
         self.network_fn = network_fn
         self.network_name = network_name
 
         self.network = self.load_network(self.network_name)
 
         self.history = []
-        self.optimizer = optim.Adam(self.network.parameters(), lr=1e-1)
+        self.optimizer = optim.Adam(self.network.parameters(), lr=5e-3)
         self.t = 0
 
     def load_network(self, filename):
@@ -58,11 +58,11 @@ class VPGAgent:
 
             probabilities = self.probabilities(observation)
 
+            if self.t % 5000 == 0:
+                print(probabilities)
+
             if probabilities.sum() == 0.0:
                 probabilities += 1.0
-
-            if self.t % 1000 == 0:
-                print(probabilities)
 
             return torch.multinomial(probabilities, num_samples=1)[0].item()
 
@@ -102,31 +102,35 @@ class VPGAgent:
 
         rewards_to_go /= std
 
-        if log:
-            print(rewards_to_go)
+        # if log:
+        # print(rewards_to_go)
 
         states = [history[i].observation for i in range(len(history))]
         actions = torch.tensor([history[i].action for i in range(len(history))]).view(
             -1, 1
         )
+        rewards = torch.tensor([history[i].reward for i in range(len(history))])
+
         logits = self.network(
             torch.stack(list(map(lambda x: torch.tensor(x).float(), states)))
         )
 
-        loss = -(logits.gather(1, actions) * rewards_to_go).mean()
+        loss = (logits.gather(1, actions) * rewards_to_go).mean()
 
         self.optimizer.zero_grad()
 
-        if log:
-            print(f"LOSS: {loss}")
+        # if log:
+        print(f"LOSS: {loss}")
 
         loss.backward()
 
         self.optimizer.step()
+        # print([x.std().item() for x in self.network.parameters()])
 
         if log:
             print(f"Saving network to file {self.network_name}")
         torch.save(self.network, self.network_name)
 
     def probabilities(self, observation):
-        return torch.exp(self.network(torch.tensor(observation).float()[None]))[0]
+        logits = self.network(torch.tensor(observation).float()[None])
+        return torch.exp(logits)[0]

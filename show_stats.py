@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 
 WINDOW_SIZE = 5
-stats = json.loads(open(f"monitor/{sys.argv[1]}").read())
+stats = json.loads(open(sys.argv[1]).read())
 x = np.arange(len(stats))
 reward = [s["reward"]["mean"] for s in stats]
 reward_std = [s["reward"]["std"] / 10.0 for s in stats]

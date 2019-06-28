@@ -86,10 +86,11 @@ if __name__ == "__main__":
         env = SnakePerspectiveWithPrevActions(env)
 
     network_fn = fc(sum(env.observation_space.shape), env.action_space.n)
+
     agent = AGENTS[args.agent](
         action_space=env.action_space,
         network_fn=network_fn,
-        network_name=f"savepoints/{args.env_id}.pkl",
+        network_name=f"savepoints/{args.agent}-{args.env_id}.pkl",
     )
     stats = Stats(args.env_id)
 

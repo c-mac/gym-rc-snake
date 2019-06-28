@@ -146,11 +146,6 @@ class PPOAgent:
 
             self.optimizer.zero_grad()
 
-            if torch.isnan(loss):
-                import pdb
-
-                pdb.set_trace()
-
             if log:
                 print(f"LOSS: {loss}")
 
