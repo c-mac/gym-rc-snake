@@ -12,6 +12,7 @@ black = "*"
 matplotlib = "*"
 torch = "*"
 flake8 = "*"
+gym = "*"
 
 [requires]
 python_version = "3.7"

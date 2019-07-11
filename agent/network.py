@@ -26,14 +26,16 @@ class Network(nn.Module):
 class FC(nn.Module):
     def __init__(self, observation_size, output_size):
         super(FC, self).__init__()
-        self.x1 = nn.Linear(observation_size, 512)
-        self.x2 = nn.Linear(512, output_size)
+        self.x1 = nn.Linear(observation_size, 256)
+        self.x2 = nn.Linear(256, 64)
+        self.x3 = nn.Linear(64, output_size)
         self.out = nn.LogSoftmax(dim=1)
 
     def forward(self, x):
         x = x.flatten(1)
         x = F.relu(self.x1(x))
         x = F.relu(self.x2(x))
+        x = self.x3(x)
         return self.out(x)
 
 

@@ -1,6 +1,7 @@
 import argparse
 import gym
 import time
+import datetime
 import torch
 
 from agent.vpg_agent import VPGAgent
@@ -11,6 +12,7 @@ from stats import Stats
 from gym import logger
 from wrappers.snake import SnakePerspectiveWithPrevActions
 from gym.envs.registration import register
+from gym.wrappers.monitoring.video_recorder import VideoRecorder
 
 register(id="snake-rc-v0", entry_point="gym_rc_snake.envs:SnakeRCEnv")
 
@@ -26,6 +28,11 @@ def test(env, agent, num_episodes, stats, render=False):
 
 
 def one_episode(env, agent, pause=0.02, train=False, render=False):
+    recorder = False
+    if render:
+        recorder = VideoRecorder(env, base_path=f"video/{datetime.datetime.utcnow()}")
+    if recorder:
+        print(recorder.ansi_mode)
     cum_reward = 0
     length = 0
     ob = env.reset()
@@ -44,10 +51,13 @@ def one_episode(env, agent, pause=0.02, train=False, render=False):
 
         if render:
             env.render()
-            time.sleep(pause)
+            recorder.capture_frame()
+        # time.sleep(pause)
 
         if done:
             env.close()
+            if recorder:
+                recorder.close()
             return (cum_reward, length)
 
 
