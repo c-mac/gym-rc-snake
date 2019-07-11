@@ -31,8 +31,6 @@ def one_episode(env, agent, pause=0.02, train=False, render=False):
     recorder = False
     if render:
         recorder = VideoRecorder(env, base_path=f"video/{datetime.datetime.utcnow()}")
-    if recorder:
-        print(recorder.ansi_mode)
     cum_reward = 0
     length = 0
     ob = env.reset()
@@ -52,7 +50,7 @@ def one_episode(env, agent, pause=0.02, train=False, render=False):
         if render:
             env.render()
             recorder.capture_frame()
-        # time.sleep(pause)
+            # time.sleep(pause)
 
         if done:
             env.close()
