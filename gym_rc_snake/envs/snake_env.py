@@ -40,6 +40,8 @@ TRANSFORMATIONS = [
 
 
 class SnakeRCEnv(gym.Env):
+    metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 25}
+
     def __init__(self, board_size=BOARD_SIZE):
         self.action_space = spaces.Discrete(3)
         self.current_direction = Direction.NORTH
