@@ -17,9 +17,9 @@ UP = 3
 MOVE_OPPOSITE = {LEFT: RIGHT, DOWN: UP, RIGHT: LEFT, UP: DOWN}
 
 
-class PPOAgent:
+class LstmPpoAgent:
     """
-    Use PPO
+    Use PPO with an LSTM
     """
 
     def __init__(self, action_space, network_fn, network_name=None):
@@ -33,6 +33,11 @@ class PPOAgent:
         self.old_network.load_state_dict(self.network.state_dict())
 
         self.history = []
+        # 32 just happens to be the size of our hidden stuff for LSTM purposes
+        # The number is kind of arbitrary, it seems big enough to hold important
+        # information, small enough not to slow down the training
+        self.hidden = (torch.zeros(1, 1, 32), torch.zeros(1, 1, 32))
+        self.episode_history = []
         self.optimizer = optim.Adam(self.network.parameters(), lr=1e-3)
         self.t = 0
 
@@ -54,8 +59,8 @@ class PPOAgent:
         Run it through the network to get an action distribution
         Sample from that action distribution and return the result
         """
-
         with torch.no_grad():
+            self.episode_history.append(observation)
             self.t += 1
 
             probabilities = self.probabilities(observation)
@@ -78,6 +83,10 @@ class PPOAgent:
             Experience(observation, action, reward, next_observation, done)
         )
 
+        if done:
+            self.episode_history = []
+            self.hidden = (torch.zeros(1, 1, 32), torch.zeros(1, 1, 32))
+
         if len(self.history) > self.batch_size and done:
             self.learn_from_history(self.history)
             self.history = []
@@ -87,18 +96,16 @@ class PPOAgent:
         action_taken = torch.tensor(action_taken).view(-1, 1)
         reward = torch.stack(reward)
 
-        import pdb
-
-        pdb.set_trace()
         # How likely our action was under our old policy
-        old_probs = torch.exp(self.old_network(input).view(len(input), -1)).gather(
-            1, action_taken
-        )
+
+        old_probs = torch.exp(
+            self.old_network(input[None], self.hidden)[0].view(len(input), -1)
+        ).gather(1, action_taken)
 
         # How likely it was that we would take this action with our current policy
-        new_probs = torch.exp(self.network(input).view(len(input), -1)).gather(
-            1, action_taken
-        )
+        new_probs = torch.exp(
+            self.network(input[None], self.hidden)[0].view(len(input), -1)
+        ).gather(1, action_taken)
 
         # this is r_t_theta in the PPO paper
         ratio = (new_probs / old_probs).squeeze()
@@ -114,6 +121,10 @@ class PPOAgent:
         return -(combined.min(0).values).mean()
 
     def learn_from_history(self, history, log=False):
+        # So, now we want to learn, and we do that *by episode*
+        # This is because for each episode we will get the correct context, but our
+        # context has to reset at the end of each episode.
+
         rewards_to_go = torch.zeros(len(history))
         rewards = [h.reward for h in history]
         rewards_after = 0
@@ -140,27 +151,59 @@ class PPOAgent:
         if log:
             print(rewards_to_go)
 
-        for _ in range(2):
-            loss = self.ppo(
-                [(history[i].observation) for i in range(len(history))],
-                [history[i].action for i in range(len(history))],
-                [rewards_to_go[i] for i in range(len(history))],
-            )
+        # PPO theoretically allows you to train multiple times on the same data. Let's
+        # not worry about that right now because it's not necessary when we have
+        # environments that are run quite cheaply like snake or cartpole.
+        for _ in range(1):
+            # OK, here's a little switcheroo to simplify some stuff for now. Let's only
+            # train on the first episode
+            history_by_episode = []
+            episode = []
 
-            self.optimizer.zero_grad()
+            for i in range(len(history)):
+                if history[i].done:
+                    history_by_episode.append(episode)
+                    episode = []
+                else:
+                    h = history[i]
+                    episode.append(
+                        Experience(
+                            observation=h.observation,
+                            action=h.action,
+                            reward=rewards_to_go[i],
+                            next_observation=None,
+                            done=None,
+                        )
+                    )
 
-            if log:
-                print(f"LOSS: {loss}")
+            for history in history_by_episode:
+                loss = self.ppo(
+                    [(history[i].observation) for i in range(len(history))],
+                    [history[i].action for i in range(len(history))],
+                    [history[i].reward for i in range(len(history))],
+                )
 
-            self.old_network.load_state_dict(self.network.state_dict())
+                self.optimizer.zero_grad()
 
-            loss.backward()
+                if log:
+                    print(f"LOSS: {loss}")
 
-            self.optimizer.step()
+                loss.backward()
+
+        self.old_network.load_state_dict(self.network.state_dict())
+        self.optimizer.step()
 
         if log:
             print(f"Saving network to file {self.network_name}")
         torch.save(self.network, self.network_name)
 
     def probabilities(self, observation):
-        return torch.exp(self.network(torch.tensor(observation).float()[None]))[0]
+        (logits, hidden) = self.network(
+            torch.tensor(observation).float().view(1, 1, -1), self.hidden
+        )
+        self.hidden = hidden
+
+        if self.t % 1000 == 0:
+            print(torch.exp(logits)[0])
+
+        return torch.exp(logits)[0]

@@ -32,11 +32,12 @@ class EntireBoard(ObservationWrapper):
 
 
 class SnakePerspectiveMultipleFrames(ObservationWrapper):
-    def observation(self, observation):
-        if not getattr(self, "observations", None):
-            self.observation_space = spaces.Box(low=-1, high=2, shape=(70,))
-            self.observations = [[0] * 7] * 10
+    def __init__(self, env):
+        super(SnakePerspectiveMultipleFrames, self).__init__(env)
+        self.observation_space = spaces.Box(low=0, high=2, shape=((10,)), dtype=np.int)
+        self.observations = [[0] * 7] * 10
 
+    def observation(self, observation):
         current_direction, snake, food = observation
         head = snake[-1]
         left = self.new_head(head=head, direction=self.turn(Move.LEFT))
@@ -69,6 +70,11 @@ class SnakePerspectiveMultipleFrames(ObservationWrapper):
 
 
 class SnakePerspective(ObservationWrapper):
+    def __init__(self, env):
+        super(SnakePerspective, self).__init__(env)
+
+        self.observation_space = spaces.Box(low=0, high=2, shape=((9,)), dtype=np.int)
+
     def observation(self, observation):
         current_direction, snake, food = observation
         head = snake[-1]
@@ -94,6 +100,9 @@ class SnakePerspective(ObservationWrapper):
 
         ob = list(map(what_is_there, [left2, left, straight, straight2, right, right2]))
 
+        ob.append(current_direction)
+        ob.append(head[0] - food[0])
+        ob.append(head[1] - food[1])
         return ob
 
 
@@ -147,3 +156,17 @@ class SnakePerspectiveWithPrevActions(ObservationWrapper):
         board[self.food[0], self.food[1]] = -1
 
         return torch.tensor(ob + self.directions + list(board.flatten(1)))
+
+
+class MultipleFrames(ObservationWrapper):
+    def __init__(self, env, num_frames):
+        super(MultipleFrames, self).__init__(env)
+        self.num_frames = num_frames
+        self.observations = [[0] * sum(env.observation_space.shape)] * num_frames
+        self.parent = env.__class__
+
+    def observation(self, observation):
+        self.observations.append(observation)
+        self.observations = self.observations[-self.num_frames :]
+
+        return torch.tensor(self.observations).view(1, self.num_frames, -1)

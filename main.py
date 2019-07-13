@@ -6,17 +6,18 @@ import torch
 
 from agent.vpg_agent import VPGAgent
 from agent.ppo_agent import PPOAgent
+from agent.lstm_ppo_agent import LstmPpoAgent
 from agent.network import fc, lstm
 from stats import Stats
 
 from gym import logger
-from wrappers.snake import SnakePerspectiveWithPrevActions
+from wrappers.snake import SnakePerspective
 from gym.envs.registration import register
 from gym.wrappers.monitoring.video_recorder import VideoRecorder
 
 register(id="snake-rc-v0", entry_point="gym_rc_snake.envs:SnakeRCEnv")
 
-AGENTS = {"ppo": PPOAgent, "vpg": VPGAgent}
+AGENTS = {"ppo": PPOAgent, "vpg": VPGAgent, "lstm": LstmPpoAgent}
 
 
 def test(env, agent, num_episodes, stats, render=False):
@@ -91,14 +92,14 @@ if __name__ == "__main__":
     env = gym.make(args.env_id)
     env.reset()
     if args.env_id == "snake-rc-v0":
-        env = SnakePerspectiveWithPrevActions(env)
+        env = SnakePerspective(env)
 
-    network_fn = fc(sum(env.observation_space.shape), env.action_space.n)
+    network_fn = lstm(sum(env.observation_space.shape), env.action_space.n)
 
     agent = AGENTS[args.agent](
         action_space=env.action_space,
         network_fn=network_fn,
-        network_name=f"savepoints/{args.agent}-{args.env_id}.pkl",
+        network_name=f"savepoints/{args.agent}-{args.env_id}-{network_fn().key}.pkl",
     )
     stats = Stats(args.env_id)
 

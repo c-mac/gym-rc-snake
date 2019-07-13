@@ -5,7 +5,7 @@ import gym
 from enum import IntEnum
 from gym import spaces
 
-WINDOW_SIZE = 800
+WINDOW_SIZE = 400
 BOARD_SIZE = 8
 START_PADDING = 1
 

@@ -13,6 +13,8 @@ matplotlib = "*"
 torch = "*"
 flake8 = "*"
 gym = "*"
+pylint = "*"
+jupyter = "*"
 
 [requires]
 python_version = "3.7"
