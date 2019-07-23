@@ -87,9 +87,6 @@ class PPOAgent:
         action_taken = torch.tensor(action_taken).view(-1, 1)
         reward = torch.stack(reward)
 
-        import pdb
-
-        pdb.set_trace()
         # How likely our action was under our old policy
         old_probs = torch.exp(self.old_network(input).view(len(input), -1)).gather(
             1, action_taken

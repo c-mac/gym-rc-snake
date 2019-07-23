@@ -73,37 +73,34 @@ class SnakePerspective(ObservationWrapper):
     def __init__(self, env):
         super(SnakePerspective, self).__init__(env)
 
-        self.observation_space = spaces.Box(low=0, high=2, shape=((9,)), dtype=np.int)
+        self.observation_space = spaces.Box(low=0, high=2, shape=((6,)), dtype=np.int)
 
     def observation(self, observation):
         current_direction, snake, food = observation
         head = snake[-1]
 
         left = self.new_head(head=head, direction=self.turn(Move.LEFT))
-        left2 = self.new_head(head=head, direction=self.turn(Move.LEFT), step_size=2)
         straight = self.new_head(head=head, direction=self.turn(Move.STRAIGHT))
-        straight2 = self.new_head(
-            head=head, direction=self.turn(Move.STRAIGHT), step_size=2
-        )
         right = self.new_head(head=head, direction=self.turn(Move.RIGHT))
-        right2 = self.new_head(head=head, direction=self.turn(Move.RIGHT), step_size=2)
 
-        def what_is_there(location):
-            if location in snake[:-1]:
-                return 1
+        def is_food(location):
             if location == food:
                 return -1
+            else:
+                return 0
+
+        def is_wall_or_snake(location):
+            if location in snake[:-1]:
+                return 1
             if location[0] > 7 or location[0] < 0 or location[1] > 7 or location[1] < 0:
                 return 1
             else:
                 return 0
 
-        ob = list(map(what_is_there, [left2, left, straight, straight2, right, right2]))
+        food_ob = list(map(is_food, [left, straight, right]))
+        wall_or_snake_ob = list(map(is_wall_or_snake, [left, straight, right]))
 
-        ob.append(current_direction)
-        ob.append(head[0] - food[0])
-        ob.append(head[1] - food[1])
-        return ob
+        return [*food_ob, *wall_or_snake_ob]
 
 
 class SnakePerspectiveWithPrevActions(ObservationWrapper):

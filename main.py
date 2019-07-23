@@ -7,6 +7,7 @@ import torch
 from agent.vpg_agent import VPGAgent
 from agent.ppo_agent import PPOAgent
 from agent.lstm_ppo_agent import LstmPpoAgent
+from agent.cellular_automata_agent import CellularAutomataAgent
 from agent.network import fc, lstm
 from stats import Stats
 
@@ -17,7 +18,12 @@ from gym.wrappers.monitoring.video_recorder import VideoRecorder
 
 register(id="snake-rc-v0", entry_point="gym_rc_snake.envs:SnakeRCEnv")
 
-AGENTS = {"ppo": PPOAgent, "vpg": VPGAgent, "lstm": LstmPpoAgent}
+AGENTS = {
+    "ca": CellularAutomataAgent,
+    "lstm": LstmPpoAgent,
+    "ppo": PPOAgent,
+    "vpg": VPGAgent,
+}
 
 
 def test(env, agent, num_episodes, stats, render=False):
@@ -40,6 +46,10 @@ def one_episode(env, agent, pause=0.02, train=False, render=False):
         action = agent.act(ob)
         ob, reward, done, info = env.step(action)
 
+        if length > 200:
+            done = True
+            reward = -1
+
         if train:
             agent.update_value(old_ob, action, reward, ob, done)
 
@@ -51,7 +61,7 @@ def one_episode(env, agent, pause=0.02, train=False, render=False):
         if render:
             env.render()
             recorder.capture_frame()
-            # time.sleep(pause)
+            time.sleep(pause)
 
         if done:
             env.close()
@@ -94,7 +104,9 @@ if __name__ == "__main__":
     if args.env_id == "snake-rc-v0":
         env = SnakePerspective(env)
 
-    network_fn = lstm(sum(env.observation_space.shape), env.action_space.n)
+    network_fn = fc(sum(env.observation_space.shape), env.action_space.n)
+    if args.agent == "lstm":
+        network_fn = lstm(sum(env.observation_space.shape), env.action_space.n)
 
     agent = AGENTS[args.agent](
         action_space=env.action_space,

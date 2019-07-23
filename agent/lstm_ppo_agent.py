@@ -154,7 +154,7 @@ class LstmPpoAgent:
         # PPO theoretically allows you to train multiple times on the same data. Let's
         # not worry about that right now because it's not necessary when we have
         # environments that are run quite cheaply like snake or cartpole.
-        for _ in range(1):
+        for _ in range(2):
             # OK, here's a little switcheroo to simplify some stuff for now. Let's only
             # train on the first episode
             history_by_episode = []
